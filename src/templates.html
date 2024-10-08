@@ -1,0 +1,82 @@
+<template id="yajsf-form" html-base-class="Form">
+  <style>
+    label, input, textarea, select {
+      width: 100%;
+    }
+  </style>
+  <form id="main">
+    <slot></slot>
+    <slot name="buttons">
+      <button>Submit</button>
+      <input type="reset"></input>
+    </slot>
+  </form>
+</template>
+
+
+<template id="yajsf-input">
+  <style>
+    :host, .label {display: block}
+    .errors {color: red}
+  </style>
+  <label>
+    <slot class="label"><!-- title --></slot>
+    <slot name="errors" class="errors"></slot>
+    <slot name="input"><input id="main"/></slot>
+  </label>
+</template>
+
+
+<template id="yajsf-textarea">
+  <yajsf-input>
+    <slot><!-- title --></slot>
+    <slot name="errors" slot="errors"></slot>
+    <textarea slot="input" id="main"></textarea>
+  </yajsf-input>
+</template>
+
+
+<template id="yajsf-select" html-base-class="Select">
+  <style>
+    [name=options] {
+      display: none;
+    }
+  </style>
+  <yajsf-input>
+    <slot><!-- title --></slot>
+    <slot name="errors" slot="errors"></slot>
+    <slot name="options"></slot>
+    <select slot="input" id="main"></select>
+  </yajsf-input>
+</template>
+
+
+<template id="yajsf-fieldset">
+  <fieldset id="main">
+    <legend>
+      <slot name="legend"></slot>
+    </legend>
+    <slot></slot>
+  </form>
+</template>
+
+
+<template id="yajsf-datalist">
+  <datalist id="main">
+    <slot name="options"></slot>
+  </datalist>
+</template>
+
+<!--
+hidden
+
+color
+image
+file
+
+month
+week
+tel
+url
+search
+-->

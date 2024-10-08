@@ -1,0 +1,216 @@
+{
+    "$defs": {
+        "Choices": {
+            "description": "choix cornelien",
+            "enum": [
+                1,
+                2,
+                3,
+                4
+            ],
+            "title": "Choices",
+            "type": "integer"
+        },
+        "RoleSchema": {
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string"
+                },
+                "permissions": {
+                    "items": {
+                        "enum": [
+                            "read",
+                            "write",
+                            "delete",
+                            "admin"
+                        ],
+                        "type": "string"
+                    },
+                    "title": "Permissions",
+                    "type": "array"
+                },
+                "resource": {
+                    "items": {
+                        "enum": [
+                            "user",
+                            "files"
+                        ],
+                        "type": "string"
+                    },
+                    "title": "Resource",
+                    "type": "array"
+                }
+            },
+            "required": [
+                "name",
+                "resource",
+                "permissions"
+            ],
+            "title": "RoleSchema",
+            "type": "object"
+        }
+    },
+    "description": "The id of the item",
+    "properties": {
+        "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+        },
+        "awake_date": {
+            "default": null,
+            "format": "date-time",
+            "title": "Awake Date",
+            "type": "string"
+        },
+        "birthdate": {
+            "format": "date",
+            "title": "Birthdate",
+            "type": "string"
+        },
+        "choice": {
+            "$ref": "#/$defs/Choices"
+        },
+        "choices": {
+            "items": {
+                "$ref": "#/$defs/Choices"
+            },
+            "title": "Choices",
+            "type": "array"
+        },
+        "roles": {
+            "items": {
+                "$ref": "#/$defs/RoleSchema"
+            },
+            "title": "Roles",
+            "type": "array"
+        },
+        "csrf_token": {
+            "title": "Csrf Token",
+            "type": "string"
+        },
+        "email": {
+            "title": "Email"
+        },
+        "formatted_str": {
+            "title": "Formatted Str"
+        },
+        "gender": {
+            "default": null,
+            "enum": [
+                "nofuckgiven",
+                "queer"
+            ],
+            "title": "Gender",
+            "type": "string"
+        },
+        "height": {
+            "exclusiveMinimum": 0,
+            "title": "Height",
+            "type": "integer"
+        },
+        "id": {
+            "default": null,
+            "title": "Id",
+            "type": "integer"
+        },
+        "interest": {
+            "enum": [
+                "code",
+                "rave",
+                "die"
+            ],
+            "title": "Interest",
+            "type": "string"
+        },
+        "interests": {
+            "items": {
+                "enum": [
+                    "code",
+                    "rave",
+                    "die"
+                ],
+                "type": "string"
+            },
+            "title": "Interests",
+            "type": "array"
+        },
+        "options": {
+            "title": "Options"
+        },
+        "password": {
+            "format": "password",
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+        },
+        "price": {
+            "title": "Price",
+            "type": "number"
+        },
+        "range": {
+            "exclusiveMinimum": 0,
+            "maximum": 20,
+            "title": "Range",
+            "type": "integer"
+        },
+        "social_profile": {
+            "format": "uri",
+            "minLength": 1,
+            "title": "Social Profile",
+            "type": "string"
+        },
+        "time": {
+            "anyOf": [
+                {
+                    "format": "time",
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "title": "Time"
+        },
+        "username": {
+            "title": "Username",
+            "type": "string"
+        },
+        "uuid": {
+            "format": "uuid4",
+            "title": "Uuid",
+            "type": "string"
+        },
+        "whatev": {
+            "additionalProperties": {
+                "type": "integer"
+            },
+            "title": "Whatev",
+            "type": "object"
+        }
+    },
+    "required": [
+        "csrf_token",
+        "username",
+        "password",
+        "email",
+        "birthdate",
+        "time",
+        "interest",
+        "interests",
+        "price",
+        "choice",
+        "choices",
+        "whatev",
+        "options",
+        "formatted_str",
+        "range",
+        "height",
+        "uuid",
+        "social_profile",
+        "roles"
+    ],
+    "title": "UserSchema",
+    "type": "object"
+}
