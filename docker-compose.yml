@@ -1,0 +1,12 @@
+services:
+
+  ts:
+    image: node:latest
+    user: node
+    working_dir: /home/node
+    volumes:
+      - ".:/home/node/"
+    stdin_open: true
+    ports:
+      - "${PORT:-5173}:5173"
+    command: ["npm", "run", "dev"]
