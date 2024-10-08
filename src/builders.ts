@@ -1,14 +1,7 @@
 import html_templates from './templates.html?raw'
 
 
-export default class FieldRenderer {
-  constructor(schema, root, data, options, name_prefix) {
-    this.schema = schema
-    this.root = root
-    this.data = data || ''
-    this.options = options || ''
-    this.name_prefix = name_prefix || ''
-  }
+export default class FormBuilder {
 
   // types: boolean, string, array, integer, number, object
   // formats: date-time, date, email, regex, password, uri, time, uuid4
@@ -19,7 +12,6 @@ export default class FieldRenderer {
     "array": {"widget": "select"},
     "enum": {"widget": "select"},
     "textarea": {"widget": "textarea"},
-    "object": {"callback": this.render},
   }
 
   attrMapping = {
@@ -33,29 +25,38 @@ export default class FieldRenderer {
     // readonly
     // step
     // novalidate?
-
   }
 
-  async render() {
+  constructor(schema, root, data={}, options={}, name_prefix='') {
+    this.schema = schema
+    this.root = root
+    this.data = data
+    this.options = options
+    this.name_prefix = name_prefix
+  }
+
+  build() {
     for (let name in this.schema.properties) {
-      const {field_schema, schemaType, attributes, widget} = this.extractData(name)
+      const {field_schema, schemaType, attributes, widget} = this.extractFieldData(name)
 
       const field_attributes = this.buildAttributes(attributes, field_schema, schemaType)
 
+      // select doesn't support passing options through slots, we need to
+      // programatically add them
       if (widget === 'select') {
         let enum_ = this.getEnum(field_schema)
         if (enum_.type === "object") {
-          // nested model
-          const renderer = new FieldRenderer(enum_, this.root, this.data, this.options, `${name}.`)
-          await renderer.render()
+          // if a nested model, we don't add options but rather build a subform
+          const builder = new FormBuilder(enum_, this.root, this.data, this.options, `${name}.`)
+          builder.build()
         } else {
-          var field = await this.createChoiceField(widget, field_schema, field_attributes, enum_)
+          var field = this.createChoiceField(
+            widget, field_schema, field_attributes, enum_)
         }
       } else {
         var field = this.createField(widget, field_schema, field_attributes)
       }
 
-      console.log(name, widget, schemaType)
       this.root.appendChild(field)
     }
     return this
@@ -66,11 +67,11 @@ export default class FieldRenderer {
     if (attributes["type"] === "integer" && (attributes["max"] - attributes["min"]) < 50) {
       attributes["type"] = "range"
     }
+
     const field = new (customElements.get(`yajsf-${widget}`))()
     const titlePrefix = attributes['required'] ? "* " : ""
     field.appendChild(document.createTextNode(titlePrefix + field_schema.title))
 
-      console.log(attributes)
     for (let name in attributes) {
       field.setAttribute(name, attributes[name])
     }
@@ -78,13 +79,13 @@ export default class FieldRenderer {
     return field
   }
 
-  async createChoiceField(widget, field_schema, attributes, options) {
+  createChoiceField(widget, field_schema, attributes, options) {
     if (options.length < 5) {
       // widget = 'radio'
     }
     const field = this.createField(widget, field_schema, attributes)
 
-    await options.forEach(option => {
+    options.forEach(option => {
       const optionElement = document.createElement('option')
       optionElement.value = option
       optionElement.text = option
@@ -97,17 +98,12 @@ export default class FieldRenderer {
     return field
   }
 
-  extractData(name) {
-    const field_schema = this.getFieldDesc(name)
+  extractFieldData(name) {
+    const field_schema = this.getFieldSchema(name)
     const schemaType = this.getSchemaType(field_schema)
     const {widget = "input", callback, ...attributes} = this.typeMapping[schemaType] || {"type": schemaType}
     attributes['name'] = this.name_prefix + name
-    console.log({
-      widget: widget,
-      schemaType: schemaType,
-      field_schema: field_schema,
-      attributes: attributes,
-    })
+
     return {
       widget: widget,
       schemaType: schemaType,
@@ -117,18 +113,22 @@ export default class FieldRenderer {
   }
 
   buildAttributes(attributes, field_schema, schemaType) {
-    let titlePrefix = ''
+    // is the field required?
     if (this.schema.required.indexOf(attributes.name) > -1) {
       attributes["required"] = "required"
-      titlePrefix = '* '
     }
+    // if the field is a list, allow to add multiple options
     if (schemaType === "array") {
       attributes['multiple'] = "multiple"
     }
-    attributes['value'] = this.data![attributes.name] || field_schema.default || ''
-    if (attributes.type === "checkbox" && (this.data[attributes.name] || field_schema.default)) {
+    // set the initial value of the field: data, default, empty
+    attributes['value'] = this.data[attributes.name] || field_schema.default || ''
+    // check the checkboxes
+    if (attributes.type === "checkbox"
+          && (this.data[attributes.name] || field_schema.default)) {
       attributes["checked"] = "checked"
     }
+    // transfer schema attributes to HTML one
     for (let attrName in this.attrMapping) {
       if (typeof(field_schema[attrName]) !== "undefined") {
         attributes[this.attrMapping[attrName]] = field_schema[attrName]
@@ -138,7 +138,7 @@ export default class FieldRenderer {
     return Object.assign(attributes, customAttrs)
   }
 
-  getFieldDesc(name) {
+  getFieldSchema(name) {
     let {$ref, anyOf, ...field_schema} = this.schema.properties[name]
 
     if ($ref) {
@@ -177,6 +177,8 @@ export default class FieldRenderer {
   }
 
   reduceAnyOf(anyOf) {
+    // @KLUDGE: not sure for this behavior, how to determine the right type
+    // and validation to apply on the field?
     return anyOf.reduce((r, i) => i["format"] && i["type"] ? i : r)
   }
 
@@ -185,7 +187,7 @@ export default class FieldRenderer {
 
   }
 
-  _getRef(path, node) {
+  protected _getRef(path, node) {
     let name = path.shift()
     if (name === "#" && ! node) {
       node = this.schema

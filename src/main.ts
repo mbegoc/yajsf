@@ -1,39 +1,28 @@
 import './style.css'
-import FieldRenderer from './renderers'
-import BaseYAJSFForm  from './form-components'
 
 import schema from './schema.json'
 import data from './data.json'
 
+import configure  from './form-components'
 
-console.log(BaseYAJSFForm)
-const form = new (customElements.get('yajsf-form'))(schema)
-const renderer = new FieldRenderer(schema, form, data, {
+
+configure()
+
+// be careful with this if the container node is refreshed: the component
+// will be rerendered without the data. It happens for exemple if the
+// innerHTML of the node is modified
+const form = new (customElements.get('yajsf-form'))(schema, data, {
   "options": {"widget": "input", "attrs": {"type": "color"}},
 })
-await renderer.render()
-
 document.querySelector('#app').appendChild(form)
 
-
-
-// document.querySelector('body').innerHTML += `
-// <yajsf-form method="POST">
-//     <yajsf-field type="text">Username</yajsf-field>
-//     <yajsf-field type="password">
-//       Password
-//       <ul slot="errors">
-//         <li>Wrong password</li>
-//         <li>Password too short</li>
-//       </ul>
-//     </yajsf-field>
-//     <yajsf-textarea cols=50 rows=10>Bio</yajsf-textarea>
-//     <yajsf-select>
-//       Number
-//       <option slot="options" value="1">Un</option>
-//       <option slot="options" value="2">Deux</option>
-//       <option slot="options" value="3">Trois</option>
-//       <option slot="options" value="4">Quatre</option>
-//     </yajsf-select>
-// </yajsf-form>
-// `
+const div = document.createElement('div')
+div.innerHTML = `
+<h1>YAJSF</h1>
+<yajsf-form method="POST" action="http://localhost:6543/api/accounts/users/"
+  data-schema='${JSON.stringify(Object.assign(schema))}'
+  data-data='${JSON.stringify(data)}'
+  data-options='{"options": {"widget": "input", "attrs": {"type": "color"}}}'>
+</yajsf-form>
+`
+document.querySelector('#app').appendChild(div)

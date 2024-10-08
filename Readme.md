@@ -38,6 +38,7 @@ Roadmap
 - Generates specific techonology templates from a meta template so homogeneity
   accross tiers and technologies is guaranted
 - Make it public friendly through configuration
+- Allow to set attributes on others nodes than the main one
 - Make it validate schema against schemas definition versions
 - Typing
 - Full set of tests
