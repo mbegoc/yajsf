@@ -56,7 +56,7 @@ export default class FormBuilder {
         let enum_ = this.getEnum(field_schema)
         if (enum_.type === "object") {
           // if a nested model, we don't add options but rather build a subform
-          const builder = new FormBuilder(enum_, this.root, this.data, this.options, this.errors, `${name}.`)
+          const builder = new FormBuilder(enum_, this.root, this.data, this.options, this.errors, `${name}___`)
           builder.build()
         } else {
           var field = this.createChoiceField(

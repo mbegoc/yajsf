@@ -10,6 +10,10 @@ independant from too much dependencies, easily pluggable in any environment.
 The point is to rely as much as possible on recent technology improvment, so
 no support will be provided for older environments.
 
+It also aims to keep as close as possible to the HTML standards and
+specifications. It means you should be able to use the form components of the
+library the way you use standard HTML (attributes, events, etc).
+
 No special focus is put on performance for now. I strongly believe performance
 rely in the first place into simplicity, clarity and lean architectures.
 
@@ -34,7 +38,6 @@ High level architecture
 Roadmap
 -------
 
-- Handle errors
 - Generates specific techonology templates from a meta template so homogeneity
   accross tiers and technologies is guaranted
 - Make it public friendly through configuration

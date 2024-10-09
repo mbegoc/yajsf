@@ -44,6 +44,10 @@ export class BaseYAJSFElement extends HTMLElement {
     }
   }
 
+  setValue(value) {
+    this.shadowRoot.querySelector('#main').value = value
+  }
+
   getValue() {
     return this.shadowRoot.querySelector('#main').value
   }
@@ -71,11 +75,12 @@ export class BaseYAJSFForm extends BaseYAJSFElement {
       }
     }
 
-    console.log(schema, data, options, this.dataset)
+    console.debug(schema, data, options, this.dataset)
     console.log(this.schema, this.data, this.options)
 
     if (this.schema === null) {
-      throw new Error(
+      console.warn(
+      // throw new Error(
         `No schema provided.  The node containing this form may have been
          refreshed and this component may have been recreated without the
          necessary data. See @link`)
@@ -88,29 +93,82 @@ export class BaseYAJSFForm extends BaseYAJSFElement {
     await super.connectedCallback()
 
     console.log(this.errors)
-    const builder = new FormBuilder(this.schema, this, this.data, this.options, this.errors)
-    builder.build()
+    if (this.schema) {
+      const builder = new FormBuilder(this.schema, this, this.data, this.options, this.errors)
+      builder.build()
+    }
+
+    const main = this.shadowRoot.querySelector('#main')
+
+    this.addInlineFields(main)
+    this.setButtonEvents(main)
 
     console.log(this.shadowRoot)
-    const main = this.shadowRoot.querySelector('#main')
     main.addEventListener('submit', event => this.submit(main, event))
+    main.addEventListener('formdata', event => console.log('formdata', event.formData))
   }
 
-  submit(main, event) {
-    console.log('####', this)
-    this.fields.forEach(field => {
-      console.log(field)
-      const hiddenInput = document.createElement('input')
-      hiddenInput.type = 'hidden'
-      hiddenInput.value = field.getValue ? field.getValue() : ''
-      hiddenInput.name = field.getName ? field.getName() : ''
-      main.appendChild(hiddenInput)
-    })
+  addInlineFields(main) {
+    for (let field of this.querySelectorAll("yajsf-input, yajsf-select, yajsf-textarea, input, select, textarea")) {
+      let input
+      if (field.shadowRoot) {
+        input = field.shadowRoot.querySelector('input')
+      } else if (field.tagName === "INPUT") {
+        input = field
+      }
+      if (input) {
+        input.addEventListener('keydown', event => event.key === "Enter" ? main.requestSubmit() : null)
+      }
+      this.fields.push(field)
+    }
+  }
+
+  setButtonEvents(main) {
+    // make buttons outside of the shadow DOM trigger form submitting
+    for (let button of this.querySelectorAll("[slot=buttons] button")) {
+      if (button.type === "submit") {
+        button.addEventListener("click", event => main.requestSubmit())
+      }
+    }
+
+    // a bit overkill, but handle fields reset as well
+    for (let [dom, selPrefix] of [[this, '[slot=buttons]>'], [this.shadowRoot, '']]) {
+      for (let button of dom.querySelectorAll(`${selPrefix}button[type=reset],input[type=reset]`)) {
+        button.addEventListener("click", event => {
+          this.fields.forEach(field => {
+            field.setValue ? field.setValue('') : field.value = ''
+          })
+        })
+      }
+    }
   }
 
   addField(field) {
     this.fields.push(field)
     this.appendChild(field)
+  }
+
+  submit(main, event) {
+    event.preventDefault()
+    console.log('submit')
+    this.fields.forEach(field => {
+      let name = field.getName ? field.getName() : field.name
+      let value = field.getValue ? field.getValue() : field.value
+
+      let hiddenInput = main.querySelector(`input[type=hidden][name=${name}]`)
+      if (hiddenInput) {
+        hiddenInput.value = value
+      } else {
+        hiddenInput = document.createElement('input')
+        hiddenInput.type = 'hidden'
+        hiddenInput.name = name
+        hiddenInput.value = value
+        main.appendChild(hiddenInput)
+      }
+    })
+
+    const formdata = new FormData(main)
+    console.log(formdata)
   }
 
 }
