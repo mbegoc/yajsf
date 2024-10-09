@@ -1,17 +1,25 @@
+// @ts-nocheck
 import * as globalConfig from './yajsf-config.json'
 import html_templates from './templates.html?raw'
 import FormBuilder from './builders'
+
+
+export let ready = null
 
 
 export class BaseYAJSFElement extends HTMLElement {
 
   constructor(template) {
     super()
+
     this.attachShadow({ mode: "open" })
     this.shadowRoot.appendChild(template.content.cloneNode(true))
   }
   
-  connectedCallback() {
+  async connectedCallback() {
+    console.log('waiting...', ready)
+    await ready
+    console.log('Ready!', ready)
     const main_node = this.shadowRoot.querySelector('#main')
     for (let attribute of this.attributes) {
       main_node.setAttribute(attribute.name, attribute.value)
@@ -35,6 +43,14 @@ export class BaseYAJSFElement extends HTMLElement {
       })
     }
   }
+
+  getValue() {
+    return this.shadowRoot.querySelector('#main').value
+  }
+
+  getName() {
+    return this.shadowRoot.querySelector('#main').name
+  }
   
 }
 
@@ -55,19 +71,45 @@ export class BaseYAJSFForm extends BaseYAJSFElement {
       }
     }
 
+    console.log(schema, data, options, this.dataset)
+    console.log(this.schema, this.data, this.options)
+
     if (this.schema === null) {
       throw new Error(
         `No schema provided.  The node containing this form may have been
          refreshed and this component may have been recreated without the
          necessary data. See @link`)
     }
+
+    this.fields = []
   }
 
-  connectedCallback() {
-    super.connectedCallback()
+  async connectedCallback() {
+    await super.connectedCallback()
 
     const builder = new FormBuilder(this.schema, this, this.data, this.options)
     builder.build()
+
+    console.log(this.shadowRoot)
+    const main = this.shadowRoot.querySelector('#main')
+    main.addEventListener('submit', event => this.submit(main, event))
+  }
+
+  submit(main, event) {
+    console.log('####', this)
+    this.fields.forEach(field => {
+      console.log(field)
+      const hiddenInput = document.createElement('input')
+      hiddenInput.type = 'hidden'
+      hiddenInput.value = field.getValue ? field.getValue() : ''
+      hiddenInput.name = field.getName ? field.getName() : ''
+      main.appendChild(hiddenInput)
+    })
+  }
+
+  addField(field) {
+    this.fields.push(field)
+    this.appendChild(field)
   }
 
 }
@@ -99,7 +141,7 @@ export class BaseYAJSFSelect extends BaseYAJSFElement {
 }
 
 
-export default async function configure(options={}) {
+export default function configure(resolve, reject, options={}) {
   for (let name in options) {
     globalConfig[name] = options[name]
   }
@@ -116,6 +158,7 @@ export default async function configure(options={}) {
   // register the components as custom elements
   templates_root.querySelectorAll('template').forEach(tpl => {
     let BaseComponent = fields[tpl.getAttribute('html-base-class')] || BaseYAJSFElement
+    console.log(`register ${tpl.id}`)
     customElements.define(tpl.id, class extends BaseComponent {
       constructor(...params) {
         super(tpl, ...params)
@@ -123,4 +166,8 @@ export default async function configure(options={}) {
     })
   })
 
+  resolve()
 }
+
+
+ready = new Promise(configure)

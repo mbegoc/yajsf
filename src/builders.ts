@@ -1,3 +1,4 @@
+// @ts-nocheck
 import html_templates from './templates.html?raw'
 
 
@@ -57,7 +58,7 @@ export default class FormBuilder {
         var field = this.createField(widget, field_schema, field_attributes)
       }
 
-      this.root.appendChild(field)
+      this.root.addField(field)
     }
     return this
   }
@@ -87,8 +88,7 @@ export default class FormBuilder {
 
     options.forEach(option => {
       const optionElement = document.createElement('option')
-      optionElement.value = option
-      optionElement.text = option
+      optionElement.value = optionElement.text = option
       if (attributes.value === option) {
         optionElement.setAttribute('selected', 'selected')
       }
