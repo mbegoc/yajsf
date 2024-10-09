@@ -3,6 +3,7 @@ import './style.css'
 
 import schema from './schema.json'
 import data from './data.json'
+import errors from './errors.json'
 
 import { ready, configure } from './form-components'
 
@@ -24,8 +25,22 @@ import { ready, configure } from './form-components'
 // <yajsf-form method="POST" action="http://localhost:6543/api/accounts/users/"
 //   data-schema='${JSON.stringify(Object.assign(schema))}'
 //   data-data='${JSON.stringify(data)}'
+//   data-errors='${JSON.stringify(errors)}'
 //   data-options='{"options": {"widget": "input", "attrs": {"type": "color"}}}'>
 // </yajsf-form>
 // `
 // document.querySelector('#app').appendChild(div)
+//
+const div = document.createElement('div')
+div.innerHTML = `
+<h1>YAJSF</h1>
+<yajsf-form>
+  <yajsf-input name="username">
+  <yajsf-input name="password" type="password">
+  <div slot="buttons">
+    <button>Submit</button>
+  </slot>
+</yajsf-form>
+`
+document.querySelector('#app').appendChild(div)
 })()

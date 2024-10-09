@@ -1,0 +1,142 @@
+[
+   {
+      "ctx" : {
+         "error" : "input is too short"
+      },
+      "input" : "",
+      "loc" : [
+         "birthdate"
+      ],
+      "msg" : "Input should be a valid date or datetime, input is too short",
+      "type" : "date_from_datetime_parsing",
+      "url" : "https://errors.pydantic.dev/2.9/v/date_from_datetime_parsing"
+   },
+   {
+      "ctx" : {
+         "error" : "input is too short"
+      },
+      "input" : "",
+      "loc" : [
+         "time"
+      ],
+      "msg" : "Input should be in a valid time format, input is too short",
+      "type" : "time_parsing",
+      "url" : "https://errors.pydantic.dev/2.9/v/time_parsing"
+   },
+   {
+      "ctx" : {
+         "error" : "input is too short"
+      },
+      "input" : "",
+      "loc" : [
+         "awake_date"
+      ],
+      "msg" : "Input should be a valid datetime or date, input is too short",
+      "type" : "datetime_from_date_parsing",
+      "url" : "https://errors.pydantic.dev/2.9/v/datetime_from_date_parsing"
+   },
+   {
+      "input" : "code",
+      "loc" : [
+         "interests"
+      ],
+      "msg" : "Input should be a valid list",
+      "type" : "list_type",
+      "url" : "https://errors.pydantic.dev/2.9/v/list_type"
+   },
+   {
+      "input" : "",
+      "loc" : [
+         "price"
+      ],
+      "msg" : "Input should be a valid number, unable to parse string as a number",
+      "type" : "float_parsing",
+      "url" : "https://errors.pydantic.dev/2.9/v/float_parsing"
+   },
+   {
+      "input" : "1",
+      "loc" : [
+         "choices"
+      ],
+      "msg" : "Input should be a valid list",
+      "type" : "list_type",
+      "url" : "https://errors.pydantic.dev/2.9/v/list_type"
+   },
+   {
+      "input" : "",
+      "loc" : [
+         "whatev"
+      ],
+      "msg" : "Input should be a valid dictionary",
+      "type" : "dict_type",
+      "url" : "https://errors.pydantic.dev/2.9/v/dict_type"
+   },
+   {
+      "input" : "",
+      "loc" : [
+         "height"
+      ],
+      "msg" : "Input should be a valid integer, unable to parse string as an integer",
+      "type" : "int_parsing",
+      "url" : "https://errors.pydantic.dev/2.9/v/int_parsing"
+   },
+   {
+      "ctx" : {
+         "error" : "invalid length: expected length 32 for simple format, found 0"
+      },
+      "input" : "",
+      "loc" : [
+         "uuid"
+      ],
+      "msg" : "Input should be a valid UUID, invalid length: expected length 32 for simple format, found 0",
+      "type" : "uuid_parsing",
+      "url" : "https://errors.pydantic.dev/2.9/v/uuid_parsing"
+   },
+   {
+      "ctx" : {
+         "error" : "input is empty"
+      },
+      "input" : "",
+      "loc" : [
+         "social_profile"
+      ],
+      "msg" : "Input should be a valid URL, input is empty",
+      "type" : "url_parsing",
+      "url" : "https://errors.pydantic.dev/2.9/v/url_parsing"
+   },
+   {
+      "input" : {
+         "active" : "true",
+         "awake_date" : "",
+         "birthdate" : "",
+         "choice" : "1",
+         "choices" : "1",
+         "csrf_token" : "cc9d11a70ed2d4d5d40f2f7853439b7247c1c8fc",
+         "email" : "",
+         "formatted_str" : "",
+         "gender" : "nofuckgiven",
+         "height" : "",
+         "id" : "",
+         "interest" : "code",
+         "interests" : "code",
+         "options" : "#000000",
+         "password" : "",
+         "price" : "",
+         "range" : "20",
+         "roles.name" : "",
+         "roles.permissions" : "read",
+         "roles.resource" : "user",
+         "social_profile" : "",
+         "time" : "",
+         "username" : "",
+         "uuid" : "",
+         "whatev" : ""
+      },
+      "loc" : [
+         "roles"
+      ],
+      "msg" : "Field required",
+      "type" : "missing",
+      "url" : "https://errors.pydantic.dev/2.9/v/missing"
+   }
+]

@@ -57,11 +57,11 @@ export class BaseYAJSFElement extends HTMLElement {
 
 export class BaseYAJSFForm extends BaseYAJSFElement {
 
-  constructor(template, schema=null, data={}, options={}) {
+  constructor(template, schema=null, data={}, options={}, errors={}) {
     super(template)
 
     // get data either from the params or the dataset
-    const attrs = {"schema": schema, "data": data, "options": options}
+    const attrs = {"schema": schema, "data": data, "options": options, "errors": errors}
     for (let attr in attrs) {
       try {
         const str = this.dataset[attr]
@@ -87,7 +87,8 @@ export class BaseYAJSFForm extends BaseYAJSFElement {
   async connectedCallback() {
     await super.connectedCallback()
 
-    const builder = new FormBuilder(this.schema, this, this.data, this.options)
+    console.log(this.errors)
+    const builder = new FormBuilder(this.schema, this, this.data, this.options, this.errors)
     builder.build()
 
     console.log(this.shadowRoot)

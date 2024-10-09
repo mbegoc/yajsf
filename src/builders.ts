@@ -28,12 +28,20 @@ export default class FormBuilder {
     // novalidate?
   }
 
-  constructor(schema, root, data={}, options={}, name_prefix='') {
+  constructor(schema, root, data={}, options={}, errors=[], name_prefix='') {
     this.schema = schema
     this.root = root
     this.data = data
+    this.errors = {}
     this.options = options
     this.name_prefix = name_prefix
+
+    try {
+      errors.forEach(error => {
+        this.errors[error.loc] = this.errors[error.loc] || []
+        this.errors[error.loc].push(error.msg)
+      })
+    } catch(e) {}
   }
 
   build() {
@@ -48,7 +56,7 @@ export default class FormBuilder {
         let enum_ = this.getEnum(field_schema)
         if (enum_.type === "object") {
           // if a nested model, we don't add options but rather build a subform
-          const builder = new FormBuilder(enum_, this.root, this.data, this.options, `${name}.`)
+          const builder = new FormBuilder(enum_, this.root, this.data, this.options, this.errors, `${name}.`)
           builder.build()
         } else {
           var field = this.createChoiceField(
@@ -72,6 +80,17 @@ export default class FormBuilder {
     const field = new (customElements.get(`yajsf-${widget}`))()
     const titlePrefix = attributes['required'] ? "* " : ""
     field.appendChild(document.createTextNode(titlePrefix + field_schema.title))
+
+    if (this.errors[attributes.name]) {
+      const ul = document.createElement('ul')
+      ul.slot = 'errors'
+      this.errors[attributes.name].forEach(msg => {
+        const li = document.createElement('li')
+        li.innerText = msg
+        ul.appendChild(li)
+      })
+      field.appendChild(ul)
+    }
 
     for (let name in attributes) {
       field.setAttribute(name, attributes[name])

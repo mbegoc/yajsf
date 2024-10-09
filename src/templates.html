@@ -4,7 +4,7 @@
       width: 100%;
     }
   </style>
-  <script>console.log(this)</script>
+  <script>console.log("EMBEDDED SCRIPTS ARE ENABLED")</script>
   <form id="main">
     <slot></slot>
     <slot name="buttons">
@@ -17,8 +17,14 @@
 
 <template id="yajsf-input">
   <style>
-    :host, .label {display: block}
-    .errors {color: red}
+    :host, .label {
+      display: block;
+    }
+    .errors {
+      color: red;
+      list-style-type: none;
+      font-size: .85rem;
+    }
   </style>
   <label>
     <slot class="label"><!-- title --></slot>
