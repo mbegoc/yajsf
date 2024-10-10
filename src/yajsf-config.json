@@ -1,4 +1,5 @@
 {
   "injectScripts": true,
-  "integrateSystemValidation": true
+  "preventHTTPSubmit": false,
+  "integrateSystemValidationMessage": false
 }

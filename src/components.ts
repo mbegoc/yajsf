@@ -1,10 +1,7 @@
 // @ts-nocheck
-import * as globalConfig from './yajsf-config.json'
 import html_templates from './templates.html?raw'
 import FormBuilder from './builders'
-
-
-export let ready = null
+import { ready, settings } from "./config"
 
 
 // Parse the text template by building a DOM
@@ -33,7 +30,7 @@ export function setAttributes(self) {
  * See if we actually need to be able to embed scripts in templates.
  */
 export function injectTemplateScripts(self) {
-    if (globalConfig.injectScripts) {
+    if (settings.injectScripts) {
         self.shadowRoot.querySelectorAll('script').forEach(script_node => {
             let newScript = document.createElement('script')
             newScript.innerText = script_node.innerText
@@ -142,19 +139,37 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         console.groupEnd(`YAJSF ― Form creation ${this.internal_id}`)
 
         this.mainNode.addEventListener('submit', event => this.submit(event))
-        this.mainNode.addEventListener('formdata', event => console.log('############ formdata', event.formData))
+        this.mainNode.addEventListener('formdata', function(event) {
+            console.info("YAJSF ― FormData available", event.formData)
+        })
+    }
+
+    validate() {
+        // I'm surprised there are no event to trigger form validation.
+        // Did I miss something?
+        let valid = true
+        this.fields.forEach(field => {
+            valid = field.validate(!this.mainNode.noValidate) && valid
+        })
+
+        // @TODO: Perform a JSON-schema validation for the whole form
+
+        return valid
     }
 
     submit(event) {
-        console.info("YAJSF form submition")
+        console.info("YAJSF ― Form submission")
 
-        // I'm surprised there are no event to trigger form validation.
-        // Did I miss something?
-        this.fields.forEach(field => {
-            field.validate(! this.mainNode.noValidate)
-        })
+        if (!this.validate() || settings.preventHTTPSubmit) {
+            event.preventDefault()
+            // will trigger the formdata event so subscribers to formdata
+            // event will be notified
+            this.getFormData()
+        }
+    }
 
-        event.preventDefault()
+    getFormData() {
+        return new FormData(this.mainNode)
     }
 
     addInlineFields() {
@@ -234,21 +249,33 @@ export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
         injectTemplateScripts(this)
 
         if (this.internals_.form) {
-            this.internals_.form.addEventListener('submit', e => this.internals_.setFormValue(this.mainNode.value), {capture: true})
+            this.internals_.setFormValue(this.mainNode.value)
+            this.mainNode.addEventListener("change", e => {
+                this.internals_.setFormValue(this.mainNode.value)
+            })
+            this.internals_.form.addEventListener('submit', e => {
+                this.internals_.setFormValue(this.mainNode.value)
+            }, {capture: true})
+
+            this.internals_.form.addEventListener('reset', e => {
+                this.mainNode.value = ""
+            })
         }
     }
 
     validate(systemReport) {
-        if (systemReport) {
-            this.mainNode.reportValidity()
-        } else if (globalConfig.integrateSystemValidation) {
+        if (settings.integrateSystemValidationMessage) {
             if (this.clearErrors) {
                 this.clearErrors()
                 if (! this.mainNode.checkValidity()) {
                     this.addError(this.mainNode.validationMessage)
+                    return false
                 }
             }
+        } else if (systemReport) {
+            return this.mainNode.reportValidity()
         }
+        return true
     }
     
     setErrors(errors) {
@@ -340,29 +367,3 @@ export class YAJSFTextArea extends YAJSFBaseWidget {
 }
 
 
-export default function configure(resolve, reject, options={}) {
-    console.group("YAJSF config")
-    for (let name in options) {
-        globalConfig[name] = options[name]
-    }
-
-    // register the components as custom elements
-    console.info("Register y-form")
-    customElements.define("y-form", YAJSFForm)
-
-    console.info("Register y-input")
-    customElements.define("y-input", YAJSFInput)
-
-    console.info("Register y-select")
-    customElements.define("y-select", YAJSFSelect)
-
-    console.info("Register y-textarea")
-    customElements.define("y-textarea", YAJSFTextArea)
-
-    console.groupEnd("YAJSF config")
-
-    resolve()
-}
-
-
-ready = new Promise(configure)

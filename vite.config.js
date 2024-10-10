@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
 
-console.log('LOADED')
 
 // https://vitejs.dev/config/
 export default defineConfig({

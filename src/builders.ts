@@ -79,6 +79,8 @@ export default class FormBuilder {
         const FieldClass = customElements.get(`y-${widget}`)
         const field = new FieldClass()
         field.setAttributes(attributes)
+        // needed for including the field into the generated formData
+        field.setAttribute("name", attributes.name)
         field.setErrors(this.errors[attributes.name] || [])
 
         const titlePrefix = attributes['required'] ? "* " : ""
