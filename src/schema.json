@@ -91,7 +91,9 @@
             "type": "string"
         },
         "email": {
-            "title": "Email"
+            "format": "email",
+            "title": "Email",
+            "type": "string"
         },
         "formatted_str": {
             "title": "Formatted Str"

@@ -1,3 +1,4 @@
 {
-  "injectScripts": true
+  "injectScripts": true,
+  "integrateSystemValidation": true
 }

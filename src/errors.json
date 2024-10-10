@@ -65,6 +65,15 @@
    {
       "input" : "",
       "loc" : [
+         "formatted_str"
+      ],
+      "msg" : "Input should be a valid dictionary",
+      "type" : "dict_type",
+      "url" : "https://errors.pydantic.dev/2.9/v/dict_type"
+   },
+   {
+      "input" : "",
+      "loc" : [
          "whatev"
       ],
       "msg" : "Input should be a valid dictionary",

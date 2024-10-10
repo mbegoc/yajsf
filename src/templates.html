@@ -1,11 +1,11 @@
-<template id="yajsf-form" html-base-class="Form">
+<template id="yajsf-form">
   <style>
     label, input, textarea, select {
       width: 100%;
     }
   </style>
   <script>console.log("EMBEDDED SCRIPTS ARE ENABLED")</script>
-  <form id="main">
+  <form class="main">
     <slot></slot>
     <slot name="buttons">
       <button>Submit</button>
@@ -28,38 +28,39 @@
   </style>
   <label>
     <slot class="label"><!-- title --></slot>
-    <slot name="input"><input id="main"/></slot>
+    <slot name="input"><input class="main"/></slot>
     <slot name="errors" class="errors"></slot>
   </label>
 </template>
 
 
-<template id="yajsf-textarea">
-  <yajsf-input>
-    <slot><!-- title --></slot>
-    <slot name="errors" slot="errors"></slot>
-    <textarea slot="input" id="main"></textarea>
-  </yajsf-input>
-</template>
-
-
-<template id="yajsf-select" html-base-class="Select">
+<template id="yajsf-select">
   <style>
     [name=options] {
       display: none;
     }
   </style>
-  <yajsf-input>
+  <!-- it's confusing to have a select included into an input thing -->
+  <y-input>
     <slot><!-- title --></slot>
     <slot name="errors" slot="errors"></slot>
     <slot name="options"></slot>
-    <select slot="input" id="main"></select>
-  </yajsf-input>
+    <select slot="input" class="main"></select>
+  </y-input>
+</template>
+
+
+<template id="yajsf-textarea">
+  <y-input>
+    <slot><!-- title --></slot>
+    <slot name="errors" slot="errors"></slot>
+    <textarea slot="input" class="main"></textarea>
+  </y-input>
 </template>
 
 
 <template id="yajsf-fieldset">
-  <fieldset id="main">
+  <fieldset class="main">
     <legend>
       <slot name="legend"></slot>
     </legend>
@@ -68,8 +69,8 @@
 </template>
 
 
-<template id="yajsf-datalist">
-  <datalist id="main">
+<template id="y-datalist">
+  <datalist class="main">
     <slot name="options"></slot>
   </datalist>
 </template>
