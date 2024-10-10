@@ -8,54 +8,126 @@ export let ready = null
 
 
 export class BaseYAJSFElement extends HTMLElement {
+  static formAssociated = true
+  mainNode = null
 
   constructor(template) {
     super()
 
     this.attachShadow({ mode: "open" })
     this.shadowRoot.appendChild(template.content.cloneNode(true))
+    this.internals_ = this.attachInternals()
+    this.mainNode = this.shadowRoot.querySelector('#main')
   }
   
   async connectedCallback() {
     console.log('waiting...', ready)
     await ready
     console.log('Ready!', ready)
-    const main_node = this.shadowRoot.querySelector('#main')
     for (let attribute of this.attributes) {
-      main_node.setAttribute(attribute.name, attribute.value)
+      this.mainNode.setAttribute(attribute.name, attribute.value)
+    }
+
+    if (this.internals_.form) {
+      this.internals_.form.addEventListener('submit', e => this.internals_.setFormValue(this.mainNode.value), {capture: true})
     }
 
     this.injectTemplateScripts()
   }
 
+  attributeChangedCallback(name, oldValue, newValue) {
+    console.info('#####', name, oldValue, newValue)
+
+  }
+
+  disconnectedCallback() {
+    console.info("########### DISCONNECTED ############")
+  }
+
+  adoptedCallback() {
+    console.info("########### ADOPTED ############")
+  }
+
   injectTemplateScripts() {
     /**
-     * Inject component scripts. Since it uses an eval it raises security
-     * concerns and may be subject to removal.
+     * Inject component scripts
      */
     // see if it may be necessary to have embeded scripts. Should at least
     // be optional.
-    // scripts are not run when the template is inserted into the DOM,
-    // explicity run them
     if (globalConfig.injectScripts) {
       this.shadowRoot.querySelectorAll('script').forEach(script_node => {
-        eval(script_node.text)
+        let newScript = document.createElement('script')
+        newScript.innerText = script_node.innerText
+        this.shadowRoot.replaceChild(newScript, script_node)
       })
     }
   }
 
+  addError(msg) {
+    let errors = this.shadowRoot.querySelector(".errors")
+    if (errors) {
+      let ul = errors.querySelector("ul")
+      if (! ul) {
+        ul = document.createElement("ul")
+        errors.appendChild(ul)
+      }
+      let li = document.createElement("li")
+      li.innerText = msg
+      ul.appendChild(li)
+    }
+  }
+
+  clearErrors() {
+    let errors = this.shadowRoot.querySelector(".errors")
+    if (errors) {
+      for (let child of errors.children) {
+        errors.removeChild(child)
+      }
+    }
+  }
+
+  validate(systemReport) {
+    if (systemReport) {
+      this.mainNode.reportValidity()
+    } else if (false) {  // add a config key to perform a system check and use the messages
+      if (this.clearErrors) {
+        this.clearErrors()
+        if (! this.mainNode.checkValidity()) {
+          this.addError(this.mainNode.validationMessage)
+        }
+      }
+    }
+  }
+  
+}
+
+
+class SystemWrapperField {
+  constructor(mainNode) {
+    this.mainNode = mainNode
+  }
+
   setValue(value) {
-    this.shadowRoot.querySelector('#main').value = value
+    this.mainNode.value = value
   }
 
   getValue() {
-    return this.shadowRoot.querySelector('#main').value
+    return this.mainNode.value
   }
 
   getName() {
-    return this.shadowRoot.querySelector('#main').name
+    return this.mainNode.name
   }
-  
+
+  validate(systemReport) {
+    if (systemReport) {
+      this.mainNode.reportValidity()
+    }
+  }
+
+  addError(msg) { }
+
+  clearErrors() { }
 }
 
 
@@ -76,7 +148,6 @@ export class BaseYAJSFForm extends BaseYAJSFElement {
     }
 
     console.debug(schema, data, options, this.dataset)
-    console.log(this.schema, this.data, this.options)
 
     if (this.schema === null) {
       console.warn(
@@ -92,42 +163,52 @@ export class BaseYAJSFForm extends BaseYAJSFElement {
   async connectedCallback() {
     await super.connectedCallback()
 
-    console.log(this.errors)
     if (this.schema) {
       const builder = new FormBuilder(this.schema, this, this.data, this.options, this.errors)
       builder.build()
     }
 
-    const main = this.shadowRoot.querySelector('#main')
+    this.addInlineFields()
+    this.setButtonEvents()
 
-    this.addInlineFields(main)
-    this.setButtonEvents(main)
-
-    console.log(this.shadowRoot)
-    main.addEventListener('submit', event => this.submit(main, event))
-    main.addEventListener('formdata', event => console.log('formdata', event.formData))
+    this.mainNode.addEventListener('submit', event => this.submit(event))
+    this.mainNode.addEventListener('formdata', event => console.log('############ formdata', event.formData))
   }
 
-  addInlineFields(main) {
-    for (let field of this.querySelectorAll("yajsf-input, yajsf-select, yajsf-textarea, input, select, textarea")) {
-      let input
-      if (field.shadowRoot) {
-        input = field.shadowRoot.querySelector('input')
-      } else if (field.tagName === "INPUT") {
-        input = field
-      }
-      if (input) {
-        input.addEventListener('keydown', event => event.key === "Enter" ? main.requestSubmit() : null)
-      }
+  submit(event) {
+    // event.preventDefault()
+    console.log("submit")
+
+    this.fields.forEach(field => {
+      field.validate(this.mainNode.getAttribute("novalidate") === null)
+    })
+  }
+
+  addInlineFields() {
+    for (let field of this.querySelectorAll("yajsf-input, yajsf-select, yajsf-textarea")) {
+      this.addField(field)
+    }
+    for (let input of this.querySelectorAll("input, select, textarea")) {
+      let field = new SystemWrapperField(input)
       this.fields.push(field)
     }
+    // could be done more elegantly
+    this.fields.forEach(field => {
+      if (field.mainNode.tagName === "INPUT") {
+        field.mainNode.addEventListener('keydown', event => {
+          if (event.key === "Enter") {
+            this.mainNode.requestSubmit()
+          }
+        })
+      }
+    })
   }
 
-  setButtonEvents(main) {
+  setButtonEvents() {
     // make buttons outside of the shadow DOM trigger form submitting
     for (let button of this.querySelectorAll("[slot=buttons] button")) {
       if (button.type === "submit") {
-        button.addEventListener("click", event => main.requestSubmit())
+        button.addEventListener("click", event => this.mainNode.requestSubmit())
       }
     }
 
@@ -145,30 +226,8 @@ export class BaseYAJSFForm extends BaseYAJSFElement {
 
   addField(field) {
     this.fields.push(field)
-    this.appendChild(field)
-  }
-
-  submit(main, event) {
-    event.preventDefault()
-    console.log('submit')
-    this.fields.forEach(field => {
-      let name = field.getName ? field.getName() : field.name
-      let value = field.getValue ? field.getValue() : field.value
-
-      let hiddenInput = main.querySelector(`input[type=hidden][name=${name}]`)
-      if (hiddenInput) {
-        hiddenInput.value = value
-      } else {
-        hiddenInput = document.createElement('input')
-        hiddenInput.type = 'hidden'
-        hiddenInput.name = name
-        hiddenInput.value = value
-        main.appendChild(hiddenInput)
-      }
-    })
-
-    const formdata = new FormData(main)
-    console.log(formdata)
+    let slot = this.mainNode.querySelector('slot')
+    this.mainNode.insertBefore(field, slot)
   }
 
 }
