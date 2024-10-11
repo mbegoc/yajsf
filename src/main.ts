@@ -1,9 +1,9 @@
 // @ts-nocheck
 import './style.css'
 
-import schema from './schema.json'
-import data from './data.json'
-import errors from './errors.json'
+import schema from './fixtures/schema.json'
+import data from './fixtures/data.json'
+import errors from './fixtures/errors.json'
 
 import { ready, autoconfigure } from './config'
 

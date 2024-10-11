@@ -1,7 +1,10 @@
 // @ts-nocheck
+import { parser, lint, validator } from '@exodus/schemasafe'
+
 import html_templates from './templates.html?raw'
-import FormBuilder from './builders'
+import { FormBuilder } from './builders'
 import { ready, settings } from "./config"
+import { SchemaHelper } from "./utils/schema"
 
 
 // Parse the text template by building a DOM
@@ -88,7 +91,8 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         }
 
         // get data either from the params or the dataset
-        const attrs = {"schema": schema, "data": data, "options": options, "errors": errors}
+        const attrs = {"schema": schema, "data": data,
+                       "options": options, "errors": errors}
         for (let attr in attrs) {
             try {
                 const str = this.dataset[attr]
@@ -111,9 +115,15 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
                 `No schema provided.  The node containing this form may have been
          refreshed and this component may have been recreated without the
          necessary data. See @link`)
+        } else {
+            let schemaErrors = lint(this.schema)
+            if (schemaErrors = lint(this.schema)) {
+                console.warn("YAJSF ― Schema errors were found", schemaErrors)
+            }
+            this.schemaHelper = new SchemaHelper(this.schema)
         }
 
-        this.fields = []
+        this.fields = new Map()
 
         this.attachShadow({ mode: "open" })
         this.shadowRoot.appendChild(this.template.content.cloneNode(true))
@@ -121,13 +131,12 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
     }
 
     async connectedCallback() {
-
         console.log('waiting...', ready)
         await ready
         console.log('Ready!', ready)
 
         if (this.schema) {
-            const builder = new FormBuilder(this.schema, this, this.data, this.options, this.errors)
+            const builder = new FormBuilder(this.schema, this, this.data, this.options)
             builder.build()
         }
 
@@ -135,6 +144,16 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         this.addInlineFields()
         this.setButtonEvents()
         injectTemplateScripts(this)
+
+        // display initial errors
+        for (let error of this.errors) {
+            for (let loc of error.loc) {
+                let field = this.fields.get(loc)
+                if (field) {
+                    field.addError(error.msg)
+                }
+            }
+        }
 
         console.groupEnd(`YAJSF ― Form creation ${this.internal_id}`)
 
@@ -145,16 +164,66 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
     }
 
     validate() {
-        // I'm surprised there are no event to trigger form validation.
-        // Did I miss something?
-        let valid = true
-        this.fields.forEach(field => {
-            valid = field.validate(!this.mainNode.noValidate) && valid
+        return this.systemValidate() && this.schemaValidate()
+    }
+
+    systemValidate() {
+        return this.fields.values().reduce(
+            field => field.validate(!this.mainNode.noValidate) && valid, true)
+    }
+
+    /**
+     * @FIXME: Exploratory code (too complex IMAO)
+     */
+    schemaValidate() {
+        const validate = parser(this.schema, {
+            $schemaDefault: "https://json-schema.org/draft/2020-12/schema",
+            mode: "default",
+            allErrors: true,
+            includeErrors: true,
+            extraFormats: true,
+            formats: {
+                password: /^[^\s]$/,
+                uuid4: /^[^\W_]{8}-([^\W_]{8}){3}-[^\W_]{12}$/,
+            },
         })
+        const formdata = new FormData(this.mainNode)
+        const map = formdata.entries().reduce((result, item) => {
+            result.set(item[0], item[1])
+            return result
+        }, new Map())
+        let validation = validate(JSON.stringify(Object.fromEntries(map)))
+        if (! validation.valid) {
+            let errors = validation.errors.reduce((result, error) => {
+                let fieldName = error.instanceLocation.slice(2)
+                let rule = error.keywordLocation
+                if (result.has(fieldName)) {
+                    result.get(fieldName).push(rule)
+                } else {
+                    result.set(fieldName, [rule])
+                }
+                return result
+            }, new Map())
 
-        // @TODO: Perform a JSON-schema validation for the whole form
-
-        return valid
+            errors.entries().forEach(errorList => {
+                let name = errorList[0]
+                let field = this.mainNode.querySelector(`[name=${name}]`)
+                if (! field) {
+                    return  // nested forms
+                }
+                let criterions = errorList[1]
+                if (criterions.indexOf("required") !== -1) {
+                    field.setErrors(["This field is required."])
+                } else {
+                    field.clearErrors()
+                    criterions.forEach(error => {
+                        let which = error.split("/").pop()
+                        let what = this.schemaHelper.getNode(error)
+                        field.addError(`The ${which} is not ${what}`)
+                    })
+                }
+            })
+        }
     }
 
     submit(event) {
@@ -173,20 +242,21 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
     }
 
     addInlineFields() {
-        for (let field of this.querySelectorAll("y-input, y-select, y-textarea")) {
-            this.addField(field)
-        }
-        for (let input of this.querySelectorAll("input, select, textarea")) {
-            try {
-                let field = wrapSystemField(input)
-                this.addField(field)
-            } catch(exc) {
-                 if (exc.name === "YAJSFError") {
-                     console.warn(exc)
-                 } else {
-                     throw exc
-                 }
+        for (let field of this.querySelectorAll(
+            "y-input, y-select, y-textarea, input, select, textarea"
+        )) {
+            if (field.tagName) {
+                try {
+                    field = wrapSystemField(input)
+                } catch(exc) {
+                     if (exc.name === "YAJSFError") {
+                         console.warn(exc)
+                     } else {
+                         throw exc
+                     }
+                }
             }
+            this.addField(field)
 
         }
     }
@@ -203,16 +273,16 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         for (let [dom, selPrefix] of [[this, '[slot=buttons]>'], [this.shadowRoot, '']]) {
             for (let button of dom.querySelectorAll(`${selPrefix}button[type=reset],input[type=reset]`)) {
                 button.addEventListener("click", event => {
-                    this.fields.forEach(field => {
-                        field.setValue ? field.setValue('') : field.value = ''
-                    })
+                    for (let field of this.fields.values()) {
+                        field.setValue('')
+                    }
                 })
             }
         }
     }
 
     addField(field) {
-        this.fields.push(field)
+        this.fields.set(field.name, field)
         let slot = this.mainNode.querySelector('slot')
         this.mainNode.insertBefore(field, slot)
     }
@@ -263,6 +333,10 @@ export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
         }
     }
 
+    get name() {
+        return this.mainNode.name
+    }
+
     validate(systemReport) {
         if (settings.integrateSystemValidationMessage) {
             if (this.clearErrors) {
@@ -280,18 +354,18 @@ export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
     
     setErrors(errors) {
         this.clearErrors()
-        errors.forEach(error => {
+        for (let error of errors) {
             this.addError(error)
-        })
+        }
     }
 
     addError(error) {
-        let errors = this.shadowRoot.querySelector(".errors")
-        if (errors) {
-            let ul = errors.querySelector("ul")
+        let container = this.shadowRoot.querySelector(".errors")
+        if (container) {
+            let ul = container.querySelector("ul")
             if (! ul) {
                 ul = document.createElement("ul")
-                errors.appendChild(ul)
+                container.appendChild(ul)
             }
             let li = document.createElement("li")
             li.innerText = error
@@ -313,8 +387,8 @@ export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
     }
 
     setAttributes(attributes) {
-        for (let name in attributes) {
-          this.mainNode.setAttribute(name, attributes[name])
+        for (let [name, value] of Object.entries(attributes)) {
+            this.mainNode.setAttribute(name, value)
         }
     }
 

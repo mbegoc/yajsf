@@ -1,17 +1,44 @@
 // @ts-nocheck
+import { SchemaHelper } from "./utils/schema"
+import { mergeObjects } from "./utils/helpers"
+import { settings } from "./config"
 
 
-export default class FormBuilder {
-
+class FieldBuilder {
     // types: boolean, string, array, integer, number, object
     // formats: date-time, date, email, regex, password, uri, time, uuid4
     protected typeMapping = {
         "boolean": {"type": "checkbox"},
         "date-time": {"type": "datetime-local"},
         "uri": {"type": "url"},
+        "integer": {"type": "number"},
+
+        // we could use the format as the type, but we would need
+        // to filter the unsupported formats. It's simpler to just
+        // add a mapping for these values and let the default "text"
+        // for not matching format
+        "date": {"type": "date"},
+        "time": {"type": "time"},
+        "email": {"type": "email"},
+        "number": {
+            "type": "number",
+            "attrs": {"step": settings.defaultNumberStep},
+        },
+        "password": {"type": "password"},
+        // search
+        // month
+        // image
+        // tel
+        // color
+        // week
+        // file
+
+        // radio
+        // hidden
+
         "array": {"widget": "select"},
         "enum": {"widget": "select"},
-        "textarea": {"widget": "textarea"},
+        "undefined": {"widget": settings.defaultWidget},
     }
 
     protected attrMapping = {
@@ -24,188 +51,160 @@ export default class FormBuilder {
         // pattern
         // readonly
         // step
-        // novalidate?
     }
 
-    constructor(schema, root, data={}, options={}, errors=[], name_prefix='') {
-        this.schema = schema
-        this.root = root
+    constructor(name, data, required, customization, prefix="") {
+        this.name = name
         this.data = data
-        this.errors = {}
-        this.options = options
-        this.name_prefix = name_prefix
+        this.required = required
+        this.customization = mergeObjects(
+            this.typeMapping[this.format], customization)
+        this.prefix = prefix
+        this.titlePrefix = ""  // configurable?
+    }
 
-        try {
-            errors.forEach(error => {
-                this.errors[error.loc] = this.errors[error.loc] || []
-                this.errors[error.loc].push(error.msg)
-            })
-        } catch(e) {}
+    get widget() {
+        if (! this._widget) {
+            this._widget = this.customization["widget"] || "input"
+        }
+
+        return this._widget
+    }
+
+    get format() {
+        if (! this._format) {
+            if (this.data.enum) {
+                return "enum"
+            } else if (this.data.format) {
+                return this.data.format
+            } else if (this.data.type) {
+                return this.data.type
+            } else {
+                return "undefined"
+            }
+        }
+
+        return this._format
+    }
+
+    get attributes() {
+        if (! this._attributes) {
+            this._attributes = {"name": this.name}
+            if (this.widget === "input") {
+                this._attributes["type"] = this.customization["type"] || "text"
+            }
+
+            // is the field required?
+            if (this.required) {
+                this._attributes["required"] = "required"
+            }
+
+            // if the field is a list, allow to add multiple options
+            // @TODO: handle multiple subforms
+            if (this.format === "array") {
+                this._attributes['multiple'] = "multiple"
+            }
+
+            // set the initial value of the field: data, default, empty
+            this._attributes['value'] = this.data[this.name] || this.data.default || ''
+            // check the checkboxes
+            if (this._attributes.type === "checkbox"
+                && (this.data[this._attributes.name] || this.data.default)) {
+                this._attributes["checked"] = "checked"
+            }
+            // transfer schema attributes to HTML one
+            for (let attrName in this.attrMapping) {
+                if (typeof(this.data[attrName]) !== "undefined") {
+                    this._attributes[this.attrMapping[attrName]] = this.data[attrName]
+                }
+            }
+            return Object.assign(this._attributes, this.customization["attrs"])
+        }
+
+        return this._attributes
     }
 
     build() {
-        for (let name in this.schema.properties) {
-            const {field_schema, schemaType, attributes, widget} = this.extractFieldData(name)
+        let field
+        if (this.attributes["type"] === "number" && (this.attributes["max"] - this.attributes["min"]) < 50) {
+            this.attributes["type"] = "range"
+        }
 
-            const field_attributes = this.buildAttributes(attributes, field_schema, schemaType)
+        if (this.attributes['required']) {
+            this.titlePrefix = "* "
+        }
+        
+        if (this.widget === "hidden" || this.attributes.type === "hidden") {
+            this.attributes.type = "hidden"
+            field = document.createElement("input")
+        } else {
+            let FieldClass = customElements.get(`y-${this.widget}`)
+            field = new FieldClass()
+            field.appendChild(document.createTextNode(
+                `${this.titlePrefix} ${this.data.title}`))
+            field.setAttributes(this.attributes)
+        }
 
-            // select doesn't support passing options through slots, we need to
-            // programatically add them
-            if (widget === 'select') {
-                let enum_ = this.getEnum(field_schema)
+        // needed for including the field into the generated formData
+        field.setAttribute("name", this.attributes.name)
+
+        // select doesn't support passing options through slots, we need to
+        // programatically add them
+        if (this.choices) {
+            if (this.choices.length < 5) {
+                // widget = 'radio'
+            }
+            for (let choice of this.choices) {
+                const optionElement = document.createElement('option')
+                optionElement.value = optionElement.text = choice
+                if (this.attributes.value === choice) {
+                    optionElement.setAttribute('selected', 'selected')
+                }
+                field.addOption(optionElement)
+            }
+        }
+
+        return field
+    }
+
+}
+
+
+export class FormBuilder {
+
+    constructor(schema, root, data={}, options={}, name_prefix='') {
+        this.schema = schema
+        this.root = root
+        this.schemaHelper = new SchemaHelper(this.schema)
+        this.data = data
+        this.options = options
+        this.name_prefix = name_prefix
+    }
+
+    build() {
+        for (let [name, fieldData, inRequired] of this.schemaHelper.properties()) {
+            let fieldBuilder = new FieldBuilder(
+                name,
+                fieldData,
+                inRequired,
+                this.options[name],
+                this.name_prefix,
+            )
+
+            if (fieldBuilder.widget === 'select') {
+                let enum_ = this.schemaHelper.getEnum(fieldData)
                 if (enum_.type === "object") {
                     // if a nested model, we don't add options but rather build a subform
-                    const builder = new FormBuilder(enum_, this.root, this.data, this.options, this.errors, `${name}___`)
+                    const builder = new FormBuilder(enum_, this.root, this.data, this.options, `${name}___`)
                     builder.build()
                 } else {
-                    var field = this.createChoiceField(
-                        widget, field_schema, field_attributes, enum_)
+                    fieldBuilder.choices = enum_
                 }
-            } else {
-                var field = this.createField(widget, field_schema, field_attributes)
             }
+
+            let field = fieldBuilder.build()
 
             this.root.addField(field)
-        }
-        return this
-    }
-
-    createField(widget, field_schema, attributes) {
-        widget = (this.options[attributes.name] || {})["widget"] || widget
-        if (attributes["type"] === "integer" && (attributes["max"] - attributes["min"]) < 50) {
-            attributes["type"] = "range"
-        }
-
-        const FieldClass = customElements.get(`y-${widget}`)
-        const field = new FieldClass()
-        field.setAttributes(attributes)
-        // needed for including the field into the generated formData
-        field.setAttribute("name", attributes.name)
-        field.setErrors(this.errors[attributes.name] || [])
-
-        const titlePrefix = attributes['required'] ? "* " : ""
-        field.appendChild(document.createTextNode(titlePrefix + field_schema.title))
-
-        return field
-    }
-
-    createChoiceField(widget, field_schema, attributes, options) {
-        if (options.length < 5) {
-            // widget = 'radio'
-        }
-        const field = this.createField(widget, field_schema, attributes)
-
-        options.forEach(option => {
-            const optionElement = document.createElement('option')
-            optionElement.value = optionElement.text = option
-            if (attributes.value === option) {
-                optionElement.setAttribute('selected', 'selected')
-            }
-            field.addOption(optionElement)
-        })
-
-        return field
-    }
-
-    extractFieldData(name) {
-        const field_schema = this.getFieldSchema(name)
-        const schemaType = this.getSchemaType(field_schema)
-        const {widget = "input", callback, ...attributes} = this.typeMapping[schemaType] || {"type": schemaType}
-        attributes['name'] = this.name_prefix + name
-
-        return {
-            widget: widget,
-            schemaType: schemaType,
-            field_schema: field_schema,
-            attributes: attributes,
-        }
-    }
-
-    buildAttributes(attributes, field_schema, schemaType) {
-        // is the field required?
-        if (this.schema.required.indexOf(attributes.name) > -1) {
-            attributes["required"] = "required"
-        }
-        // if the field is a list, allow to add multiple options
-        if (schemaType === "array") {
-            attributes['multiple'] = "multiple"
-        }
-        // set the initial value of the field: data, default, empty
-        attributes['value'] = this.data[attributes.name] || field_schema.default || ''
-        // check the checkboxes
-        if (attributes.type === "checkbox"
-            && (this.data[attributes.name] || field_schema.default)) {
-            attributes["checked"] = "checked"
-        }
-        // transfer schema attributes to HTML one
-        for (let attrName in this.attrMapping) {
-            if (typeof(field_schema[attrName]) !== "undefined") {
-                attributes[this.attrMapping[attrName]] = field_schema[attrName]
-            }
-        }
-        const customAttrs = (this.options[attributes.name] || {attrs: {}})["attrs"]
-        return Object.assign(attributes, customAttrs)
-    }
-
-    getFieldSchema(name) {
-        let {$ref, anyOf, ...field_schema} = this.schema.properties[name]
-
-        if ($ref) {
-            field_schema = this.getRef($ref)
-        }
-
-        if (anyOf) {
-            field_schema = Object.assign(field_schema, this.reduceAnyOf(anyOf))
-        }
-
-        return field_schema
-    }
-
-    getSchemaType(field_schema) {
-        console.debug(field_schema.title, field_schema)
-        if (field_schema.enum) {
-            return "enum"
-        } else if (field_schema.format) {
-            return field_schema.format
-        } else if (field_schema.type) {
-            return field_schema.type
-        } else {
-            // if absolutely nothing is found, the type is Any. It can be json, text,
-            // numbers, array. Textarea is the best for managing complex data
-            return "textarea"
-        }
-    }
-
-    getEnum(desc) {
-        const {enum: enum_, items, $ref} = desc
-        if (enum_ || items) {
-            return this.getEnum(enum_ || items)
-        } else if ($ref) {
-            return this.getEnum(this.getRef($ref))
-        }
-        return desc
-    }
-
-    reduceAnyOf(anyOf) {
-        // @KLUDGE: not sure for this behavior, how to determine the right type
-        // and validation to apply on the field?
-        return anyOf.reduce((r, i) => i["format"] && i["type"] ? i : r)
-    }
-
-    getRef(name) {
-        return this._getRef(name.split("/"))
-    }
-
-    protected _getRef(path, node) {
-        let name = path.shift()
-        if (name === "#" && ! node) {
-            node = this.schema
-            name = path.shift()
-        }
-        if (path.length !== 0) {
-            return this._getRef(path, node[name])
-        } else {
-            return node[name]
         }
     }
 

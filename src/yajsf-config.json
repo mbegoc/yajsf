@@ -1,5 +1,15 @@
 {
-  "injectScripts": true,
+  "injectScripts": false,
   "preventHTTPSubmit": false,
-  "integrateSystemValidationMessage": false
+  "integrateSystemValidationMessage": false,
+  "defaultWidget": "textarea",
+  "defaultNumberStep": "any",
+  "schemasafeValidationOptions": {
+    "$schemaDefault": "https://json-schema.org/draft/2020-12/schema",
+    "mode": "default",
+    "lint": true,
+    "allErrors": true,
+    "includeErrors": true,
+    "extraFormats": true
+  }
 }
