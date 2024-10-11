@@ -7,6 +7,15 @@ import errors from './fixtures/errors.json'
 
 import { ready, autoconfigure } from './config'
 
+export { ready, configure } from './config'
+export {
+    YAJSFForm,
+    YAJSFInput,
+    YAJSFSelect,
+    YAJSFTextArea,
+} from "./components"
+export { FormBuilder } from "./builders"
+
 
 autoconfigure()
 

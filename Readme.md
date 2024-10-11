@@ -49,6 +49,7 @@ Roadmap
 - Add support for i18n
 - Create documentation
 - publish the lib and promote it
+- add a logger
 
 Acknowlegments
 --------------

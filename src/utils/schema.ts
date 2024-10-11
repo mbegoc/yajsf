@@ -68,7 +68,7 @@ export class SchemaHelper {
     }
 
     getEnum(node) {
-        const {enum: enum_, items, $ref} = node
+        let {enum: enum_, items, $ref} = node
         if (enum_ || items) {
             return this.getEnum(enum_ || items)
         } else if ($ref) {

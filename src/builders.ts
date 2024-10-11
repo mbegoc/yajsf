@@ -5,6 +5,7 @@ import { settings } from "./config"
 
 
 class FieldBuilder {
+
     // types: boolean, string, array, integer, number, object
     // formats: date-time, date, email, regex, password, uri, time, uuid4
     protected typeMapping = {
@@ -25,6 +26,10 @@ class FieldBuilder {
             "attrs": {"step": settings.defaultNumberStep},
         },
         "password": {"type": "password"},
+
+        "array": {"widget": "select"},
+        "enum": {"widget": "select"},
+        "undefined": {"widget": settings.defaultWidget},
         // search
         // month
         // image
@@ -35,10 +40,6 @@ class FieldBuilder {
 
         // radio
         // hidden
-
-        "array": {"widget": "select"},
-        "enum": {"widget": "select"},
-        "undefined": {"widget": settings.defaultWidget},
     }
 
     protected attrMapping = {
@@ -113,12 +114,12 @@ class FieldBuilder {
                 this._attributes["checked"] = "checked"
             }
             // transfer schema attributes to HTML one
-            for (let attrName in this.attrMapping) {
-                if (typeof(this.data[attrName]) !== "undefined") {
-                    this._attributes[this.attrMapping[attrName]] = this.data[attrName]
+            for (let [fromAttr, toAttr] of Object.entries(this.attrMapping)) {
+                if (typeof(this.data[fromAttr]) !== "undefined") {
+                    this._attributes[toAttr] = this.data[fromAttr]
                 }
             }
-            return Object.assign(this._attributes, this.customization["attrs"])
+            return mergeObjects(this._attributes, this.customization["attrs"])
         }
 
         return this._attributes
@@ -126,7 +127,8 @@ class FieldBuilder {
 
     build() {
         let field
-        if (this.attributes["type"] === "number" && (this.attributes["max"] - this.attributes["min"]) < 50) {
+        if (this.attributes["type"] === "number"
+                && (this.attributes["max"] - this.attributes["min"]) < 50) {
             this.attributes["type"] = "range"
         }
 
@@ -155,7 +157,7 @@ class FieldBuilder {
                 // widget = 'radio'
             }
             for (let choice of this.choices) {
-                const optionElement = document.createElement('option')
+                let optionElement = document.createElement('option')
                 optionElement.value = optionElement.text = choice
                 if (this.attributes.value === choice) {
                     optionElement.setAttribute('selected', 'selected')
@@ -172,30 +174,32 @@ class FieldBuilder {
 
 export class FormBuilder {
 
-    constructor(schema, root, data={}, options={}, name_prefix='') {
+    constructor(schema, root, data={}, options={}, namePrefix='') {
         this.schema = schema
         this.root = root
         this.schemaHelper = new SchemaHelper(this.schema)
         this.data = data
         this.options = options
-        this.name_prefix = name_prefix
+        this.namePrefix = namePrefix
     }
 
     build() {
-        for (let [name, fieldData, inRequired] of this.schemaHelper.properties()) {
+        for (let [name, data, inRequired] of this.schemaHelper.properties()) {
             let fieldBuilder = new FieldBuilder(
                 name,
-                fieldData,
+                data,
                 inRequired,
                 this.options[name],
-                this.name_prefix,
+                this.namePrefix,
             )
 
             if (fieldBuilder.widget === 'select') {
-                let enum_ = this.schemaHelper.getEnum(fieldData)
+                let enum_ = this.schemaHelper.getEnum(data)
                 if (enum_.type === "object") {
-                    // if a nested model, we don't add options but rather build a subform
-                    const builder = new FormBuilder(enum_, this.root, this.data, this.options, `${name}___`)
+                    // if a nested model, we don't add options but rather
+                    // build a subform
+                    let builder = new FormBuilder(
+                        enum_, this.root, this.data, this.options, `${name}__`)
                     builder.build()
                 } else {
                     fieldBuilder.choices = enum_

@@ -1,7 +1,12 @@
 // @ts-nocheck
 
-import * as baseConfig from './yajsf-config.json'
-import { YAJSFForm, YAJSFInput, YAJSFSelect, YAJSFTextArea } from "./components"
+import * as baseConfig from './settings.json'
+import {
+    YAJSFForm,
+    YAJSFInput,
+    YAJSFSelect,
+    YAJSFTextArea,
+} from "./components"
 
 
 export const settings = baseConfig
