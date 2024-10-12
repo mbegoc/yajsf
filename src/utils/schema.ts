@@ -1,5 +1,5 @@
+import type { Schema, PropertyType, Property, SchemaNode, Enum } from "../types"
 import { mergeObjects } from "./helpers"
-import type { Schema, PropertyType, Property, SchemaNode } from "../types"
 
 
 export class SchemaError extends Error { }
@@ -64,14 +64,14 @@ export class SchemaHelper {
         return anyOf.reduce((r, i) => i["format"] && i["type"] ? i : r)
     }
 
-    getEnum(node: SchemaNode): SchemaNode {
+    getEnum(node: SchemaNode): Enum | Schema {
         let {enum: enum_, items, $ref}: any = node
         if (enum_ || items) {
             return this.getEnum(enum_ || items)
         } else if ($ref) {
             return this.getEnum(this.getNode($ref))
         }
-        return node
+        return node as string[]
     }
 
 }

@@ -1,10 +1,22 @@
+export type FieldOption = {
+    widget?: string
+    attrs?: {[key: string]: string}
+    type?: string
+}
+
+
+export type FieldOptions = {
+    [key: string]: FieldOption
+}
+
+
 export type Reference = {
     [key: string]: any
     $ref: `#/${string}`
 }
 
 
-export type Enum = any[]
+export type Enum = string[]
 
 
 export type PropertyType = {

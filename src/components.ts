@@ -1,6 +1,13 @@
-// @ts-nocheck
-import { parser, lint, validator } from '@exodus/schemasafe'
+import { parser, lint } from '@exodus/schemasafe'
 
+import type {
+    Schema,
+    PropertyType,
+    Property,
+    FieldOptions,
+    FieldOption,
+    Enum,
+} from "./types"
 import htmlTemplate from './templates.html?raw'
 import { FormBuilder } from './builders'
 import { ready, settings } from "./config"
@@ -8,7 +15,7 @@ import { SchemaHelper } from "./utils/schema"
 
 
 // Parse the text template by building a DOM
-let templatesRoot: HTMLElement = document.createElement('html')
+let templatesRoot: HTMLHtmlElement = document.createElement('html')
 templatesRoot.innerHTML = htmlTemplate
 
 
@@ -17,7 +24,7 @@ templatesRoot.innerHTML = htmlTemplate
  * from the component attributes. It allow to use a custom components with
  * the same interface than the underlying widget.
  */
-export function setAttributes(self: YAJSFComponent): void {
+export function setAttributes(self: YAJSFForm | YAJSFField): void {
     for (let attribute of self.attributes) {
       self.mainNode.setAttribute(attribute.name, attribute.value)
     }
@@ -32,7 +39,7 @@ export function setAttributes(self: YAJSFComponent): void {
  *
  * See if we actually need to be able to embed scripts in templates.
  */
-export function injectTemplateScripts(self: YAJSFComponent): void {
+export function injectTemplateScripts(self: YAJSFForm | YAJSFField): void {
     if (settings.injectScripts) {
         for (let scriptNode of self.shadowRoot.querySelectorAll('script')) {
             let newScript = document.createElement('script')
@@ -64,25 +71,28 @@ export function wrapSystemField(widget: HTMLElement): YAJSFComponent {
 }
 
 
-class YAJSFError extends Error { }
+// @TODO: should be moved elsewhere
+export class YAJSFError extends Error { }
 
 
 interface YAJSFComponent {
-    mainNode: HTMLElement
-    static template: HTMLNode
+    static template: HTMLTemplateElement
+    protected attributes: NamedNodeMap
 }
 
 
 export class YAJSFForm extends HTMLElement implements YAJSFComponent {
-    static template = templatesRoot.querySelector('#yajsf-form')
-    mainNode = null
-    protected template: HTMLNode
+    static template = templatesRoot.querySelector('#yajsf-form') as HTMLTemplateElement
+    protected mainNode: HTMLFormElement
     protected internalId: string
+    protected schema?: Schema
+    protected schemaHelper: SchemaHelper
+    protected fields: Map = new Map()
 
-    constructor(schema: dict[any] = null, data: dict[any] = {}, options: dict[any] = {}, errors: dict[any] = {}) {
+    constructor(schema?: Schema = null, data: {[key: string]: string} = {},
+                options: FieldOptions = {}, errors: {[key: string]: any}[] = {}) {
         super()
 
-        this.template = this.constructor.template
         if (this.id) {
             this.internalId = this.id
         } else {
@@ -123,18 +133,13 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
             this.schemaHelper = new SchemaHelper(this.schema)
         }
 
-        this.fields = new Map()
-
         this.attachShadow({ mode: "open" })
-        this.shadowRoot.appendChild(this.template.content.cloneNode(true))
-        this.mainNode = this.shadowRoot.querySelector('.main')
+        let template = (this.constructor as typeof this).template
+        this.shadowRoot.appendChild(template.content.cloneNode(true))
+        this.mainNode = this.shadowRoot.querySelector('.main')!
     }
 
-    async connectedCallback() {
-        console.log('waiting...', ready)
-        await ready
-        console.log('Ready!', ready)
-
+    connectedCallback() {
         if (this.schema) {
             let builder = new FormBuilder(this.schema, this, this.data, this.options)
             builder.build()
@@ -157,17 +162,17 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
 
         console.groupEnd(`YAJSF ― Form creation ${this.internalId}`)
 
-        this.mainNode.addEventListener('submit', event => this.submit(event))
-        this.mainNode.addEventListener('formdata', function(event) {
+        this.mainNode.addEventListener('submit', () => this.submit(event))
+        this.mainNode.addEventListener('formdata', event => {
             console.info("YAJSF ― FormData available", event.formData)
         })
     }
 
-    validate() {
+    validate(): Boolean {
         return this.systemValidate() && this.schemaValidate()
     }
 
-    systemValidate() {
+    systemValidate(): Boolean {
         return this.fields.values().reduce(
             field => field.validate(!this.mainNode.noValidate) && valid, true)
     }
@@ -175,7 +180,7 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
     /**
      * @FIXME: Exploratory code (too complex IMAO)
      */
-    schemaValidate() {
+    schemaValidate(): Boolean {
         let validate = parser(this.schema, {
             $schemaDefault: "https://json-schema.org/draft/2020-12/schema",
             mode: "default",
@@ -188,13 +193,13 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
             },
         })
         let formdata = new FormData(this.mainNode)
-        let map = formdata.entries().reduce((result, item) => {
+        let map = formdata.entries().reduce((result: Map, item) => {
             result.set(item[0], item[1])
             return result
         }, new Map())
         let validation = validate(JSON.stringify(Object.fromEntries(map)))
         if (! validation.valid) {
-            let errors = validation.errors.reduce((result, error) => {
+            let errors = validation.errors.reduce((result: Map, error) => {
                 let fieldName = error.instanceLocation.slice(2)
                 let rule = error.keywordLocation
                 if (result.has(fieldName)) {
@@ -226,7 +231,7 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         }
     }
 
-    submit(event) {
+    submit(event: SubmitEvent) {
         console.info("YAJSF ― Form submission")
 
         if (!this.validate() || settings.preventHTTPSubmit) {
@@ -237,19 +242,20 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         }
     }
 
-    getFormData() {
+    getFormData(): FormData {
         return new FormData(this.mainNode)
     }
 
-    addInlineFields() {
+    addInlineFields(): void {
         for (let field of this.querySelectorAll(
             "y-input, y-select, y-textarea, input, select, textarea"
         )) {
+            field as HTMLElement
             if (field.tagName) {
                 try {
-                    field = wrapSystemField(input)
+                    field = wrapSystemField(field)
                 } catch(exc) {
-                     if (exc.constructor.name === "YAJSFError") {
+                     if (exc?.constructor.name === "YAJSFError") {
                          console.warn(exc)
                      } else {
                          throw exc
@@ -257,22 +263,21 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
                 }
             }
             this.addField(field)
-
         }
     }
 
-    setButtonEvents() {
+    setButtonEvents(): void {
         // make buttons outside of the shadow DOM trigger form submitting
         for (let button of this.querySelectorAll("[slot=buttons] button")) {
             if (button.type === "submit") {
-                button.addEventListener("click", event => this.mainNode.requestSubmit())
+                button.addEventListener("click", () => this.mainNode.requestSubmit())
             }
         }
 
         // a bit overkill, but handle fields reset as well
         for (let [dom, selPrefix] of [[this, '[slot=buttons]>'], [this.shadowRoot, '']]) {
             for (let button of dom.querySelectorAll(`${selPrefix}button[type=reset],input[type=reset]`)) {
-                button.addEventListener("click", event => {
+                button.addEventListener("click", () => {
                     for (let field of this.fields.values()) {
                         field.setValue('')
                     }
@@ -281,7 +286,7 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         }
     }
 
-    addField(field) {
+    addField(field: YAJSFField) {
         this.fields.set(field.name, field)
         let slot = this.mainNode.querySelector('slot')
         this.mainNode.insertBefore(field, slot)
@@ -290,15 +295,14 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
 }
 
 
-export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
+export class YAJSFField extends HTMLElement implements YAJSFComponent {
+    static template: HTMLTemplateElement
     static formAssociated = true
-    mainNode = null
+    protected mainNode: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    protected internals_: ElementInternals
 
-    constructor(mainNode=null) {
+    constructor(mainNode: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null = null) {
         super()
-        // access to the static template from the child instance. See if it
-        // can be done cleaner
-        this.template = this.__proto__.constructor.template
 
         this.attachShadow({ mode: "open" })
         if (mainNode) {
@@ -306,38 +310,37 @@ export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
             // @FIXME: not sure it's a good idea to do that
             this.shadowRoot.appendChild(this.mainNode)
         } else {
-            this.shadowRoot.appendChild(this.template.content.cloneNode(true))
-            this.mainNode = this.shadowRoot.querySelector('.main')
+            let template = (this.constructor as typeof YAJSFField).template
+            this.shadowRoot.appendChild(template.content.cloneNode(true))
+            this.mainNode = this.shadowRoot.querySelector('.main')!
         }
-        this.internals_ = this.attachInternals()
+        this.internals_ = this.attachInternals()!
     }
 
-    async connectedCallback() {
-        await ready
-
+    connectedCallback() {
         setAttributes(this)
         injectTemplateScripts(this)
 
         if (this.internals_.form) {
             this.internals_.setFormValue(this.mainNode.value)
-            this.mainNode.addEventListener("change", e => {
+            this.mainNode.addEventListener("change", () => {
                 this.internals_.setFormValue(this.mainNode.value)
             })
-            this.internals_.form.addEventListener('submit', e => {
+            this.internals_.form.addEventListener('submit', () => {
                 this.internals_.setFormValue(this.mainNode.value)
             }, {capture: true})
 
-            this.internals_.form.addEventListener('reset', e => {
+            this.internals_.form.addEventListener('reset', () => {
                 this.mainNode.value = ""
             })
         }
     }
 
-    get name() {
+    get name(): string {
         return this.mainNode.name
     }
 
-    validate(systemReport) {
+    validate(systemReport: Boolean): Boolean {
         if (settings.integrateSystemValidationMessage) {
             if (this.clearErrors) {
                 this.clearErrors()
@@ -352,14 +355,14 @@ export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
         return true
     }
     
-    setErrors(errors) {
+    setErrors(errors: string[]): void {
         this.clearErrors()
         for (let error of errors) {
             this.addError(error)
         }
     }
 
-    addError(error) {
+    addError(error: string): void {
         let container = this.shadowRoot.querySelector(".errors")
         if (container) {
             let ul = container.querySelector("ul")
@@ -373,11 +376,11 @@ export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
         } else {
             console.groupCollapsed("YAJSF ― No container to display error.")
             console.info("Error message was", error)
-            console.groupEnd("YAJSF ― No container to display error.")
+            console.groupEnd()
         }
     }
 
-    clearErrors() {
+    clearErrors(): void {
         let errors = this.shadowRoot.querySelector(".errors")
         if (errors) {
             for (let child of errors.children) {
@@ -386,7 +389,7 @@ export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
         }
     }
 
-    setAttributes(attributes) {
+    setAttributes(attributes: {[key: string]: string}): void {
         for (let [name, value] of Object.entries(attributes)) {
             this.mainNode.setAttribute(name, value)
         }
@@ -395,15 +398,15 @@ export class YAJSFBaseWidget extends HTMLElement implements YAJSFComponent {
 }
 
 
-export class YAJSFInput extends YAJSFBaseWidget {
-    static template = templatesRoot.querySelector('#yajsf-input')
+export class YAJSFInput extends YAJSFField {
+    static template = templatesRoot.querySelector('#yajsf-input') as HTMLTemplateElement
 
     connectedCallback() {
         super.connectedCallback()
 
         if (this.internals_.form) {
             this.mainNode.addEventListener('keydown', event => {
-                if (event.key === "Enter") {
+                if ((event as KeyboardEvent).key === "Enter") {
                     this.internals_.form.requestSubmit()
                 }
             })
@@ -413,32 +416,32 @@ export class YAJSFInput extends YAJSFBaseWidget {
 }
 
 
-export class YAJSFSelect extends YAJSFBaseWidget {
-    static template = templatesRoot.querySelector('#yajsf-select')
+export class YAJSFSelect extends YAJSFField {
+    static template = templatesRoot.querySelector('#yajsf-select') as HTMLTemplateElement
 
-    connectedCallback(mainNode=null) {
-        super.connectedCallback(mainNode)
+    connectedCallback() {
+        super.connectedCallback()
 
-        this.optionsSlot = this.shadowRoot.querySelector('slot[name=options]')
+        let optionsSlot = this.shadowRoot.querySelector('slot[name=options]') as HTMLSlotElement
 
-        if (this.optionsSlot) {
-            this.optionsSlot.addEventListener('slotchange', () => {
-                let options = this.optionsSlot.assignedNodes()
+        if (optionsSlot) {
+            optionsSlot.addEventListener('slotchange', () => {
+                let options = optionsSlot.assignedNodes()
                 for (let option of options) {
-                    this.addOption(option.cloneNode(true))
+                    this.addOption(option.cloneNode(true) as HTMLOptionElement)
                 }
             })
         }
     }
 
-    addOption(node) {
+    addOption(node: HTMLOptionElement) {
         this.mainNode.appendChild(node)
     }
 
 }
 
 
-export class YAJSFTextArea extends YAJSFBaseWidget {
-    static template = templatesRoot.querySelector('#yajsf-textarea')
+export class YAJSFTextArea extends YAJSFField {
+    static template = templatesRoot.querySelector('#yajsf-textarea') as HTMLTemplateElement
 
 }
