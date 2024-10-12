@@ -1,7 +1,7 @@
-// @ts-nocheck
 import './style.css'
+// import type { Schema } from "./types"
 
-import schema from './fixtures/schema.json'
+import schema from './fixtures/schema.json' assert { type: "json" }
 import data from './fixtures/data.json'
 import errors from './fixtures/errors.json'
 

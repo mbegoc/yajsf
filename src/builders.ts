@@ -58,6 +58,7 @@ class FieldBuilder {
         this.name = name
         this.data = data
         this.required = required
+        // this.customization = {...this.typeMapping[this.format], ...customization}
         this.customization = mergeObjects(
             this.typeMapping[this.format], customization)
         this.prefix = prefix

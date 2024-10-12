@@ -1,5 +1,4 @@
 // @ts-nocheck
-
 import * as baseConfig from './settings.json'
 import {
     YAJSFForm,
@@ -40,7 +39,7 @@ export function autoconfigure(options={}) {
 }
 
 
-export function configure(options={}) {
+export function configure(options: dict = {}) {
     for (let name in options) {
         settings[name] = options[name]
     }

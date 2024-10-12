@@ -1,28 +1,27 @@
 import { mergeObjects } from "./helpers"
+import type { Schema, PropertyType, Property, SchemaNode } from "../types"
 
 
-export class SchemaError extends Error {
-    name = "SchemaError"
-}
+export class SchemaError extends Error { }
 
 
 export class SchemaHelper {
-    constructor(schema) {
+    protected schema: Schema
+    constructor(schema: Schema) {
         this.schema = schema
     }
 
-    * properties() {
+    * properties(): Iterable<[string, Property, Boolean]> {
         for (let name in this.schema.properties) {
             yield [
                 name,
-                this.getProperty(name),
-                Boolean(this.schema.required[name]),
+                this.getProperty(name) as Property,
+                Boolean(this.schema.required?.includes(name)),
             ]
         }
     }
 
-    getNode(name, node=null) {
-        console.groupCollapsed(name)
+    getNode(name: string, node?: SchemaNode): SchemaNode{
         let split = name.split("/")
         if (split[0] === "#") {
             split.shift()
@@ -36,19 +35,17 @@ export class SchemaHelper {
         return this._getNode(split, node, name)
     }
 
-    protected _getNode(path, node, initial) {
-        console.log(path, node)
+    protected _getNode(path: string[], node: SchemaNode, initial: string): SchemaNode {
         let name = path.shift()
-        if (path.length !== 0) {
-            return this._getNode(path, node[name])
+        if (name) {
+            return this._getNode(path, node[name], initial)
         } else {
-            console.groupEnd(initial)
-            return node[name]
+            return node
         }
     }
 
-    getProperty(name) {
-        let {$ref, anyOf, ...fieldSchema} = this.schema.properties[name]
+    getProperty(name: string): PropertyType {
+        let {$ref, anyOf, ...fieldSchema}: any = this.schema.properties[name]
 
         if ($ref) {
             fieldSchema = this.getNode($ref)
@@ -61,14 +58,14 @@ export class SchemaHelper {
         return fieldSchema
     }
 
-    reduceAnyOf(anyOf) {
+    reduceAnyOf(anyOf: PropertyType[]): PropertyType {
         // @KLUDGE: not sure for this behavior, how to determine the right type
         // and validation to apply on the field?
         return anyOf.reduce((r, i) => i["format"] && i["type"] ? i : r)
     }
 
-    getEnum(node) {
-        let {enum: enum_, items, $ref} = node
+    getEnum(node: SchemaNode): SchemaNode {
+        let {enum: enum_, items, $ref}: any = node
         if (enum_ || items) {
             return this.getEnum(enum_ || items)
         } else if ($ref) {

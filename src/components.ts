@@ -8,7 +8,7 @@ import { SchemaHelper } from "./utils/schema"
 
 
 // Parse the text template by building a DOM
-const templatesRoot = document.createElement('html')
+let templatesRoot: HTMLElement = document.createElement('html')
 templatesRoot.innerHTML = htmlTemplate
 
 
@@ -17,7 +17,7 @@ templatesRoot.innerHTML = htmlTemplate
  * from the component attributes. It allow to use a custom components with
  * the same interface than the underlying widget.
  */
-export function setAttributes(self) {
+export function setAttributes(self: YAJSFComponent): void {
     for (let attribute of self.attributes) {
       self.mainNode.setAttribute(attribute.name, attribute.value)
     }
@@ -32,7 +32,7 @@ export function setAttributes(self) {
  *
  * See if we actually need to be able to embed scripts in templates.
  */
-export function injectTemplateScripts(self) {
+export function injectTemplateScripts(self: YAJSFComponent): void {
     if (settings.injectScripts) {
         for (let scriptNode of self.shadowRoot.querySelectorAll('script')) {
             let newScript = document.createElement('script')
@@ -47,7 +47,7 @@ export function injectTemplateScripts(self) {
  * Wrap a system widget into a YAJSF component so it can be used within a
  * a YAJSF form. Probably not useful unless if extending the YAJSFForm class.
  */
-export function wrapSystemField(widget) {
+export function wrapSystemField(widget: HTMLElement): YAJSFComponent {
     switch (widget.tagName) {
         case "INPUT":
             return new YAJSFInput(widget)
@@ -64,22 +64,22 @@ export function wrapSystemField(widget) {
 }
 
 
-class YAJSFError extends Error {
-    name = "YAJSFError"
-}
+class YAJSFError extends Error { }
 
 
 interface YAJSFComponent {
-    mainNode
-    static template
+    mainNode: HTMLElement
+    static template: HTMLNode
 }
 
 
 export class YAJSFForm extends HTMLElement implements YAJSFComponent {
     static template = templatesRoot.querySelector('#yajsf-form')
     mainNode = null
+    protected template: HTMLNode
+    protected internalId: string
 
-    constructor(schema=null, data={}, options={}, errors={}) {
+    constructor(schema: dict[any] = null, data: dict[any] = {}, options: dict[any] = {}, errors: dict[any] = {}) {
         super()
 
         this.template = this.constructor.template
@@ -249,7 +249,7 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
                 try {
                     field = wrapSystemField(input)
                 } catch(exc) {
-                     if (exc.name === "YAJSFError") {
+                     if (exc.constructor.name === "YAJSFError") {
                          console.warn(exc)
                      } else {
                          throw exc
