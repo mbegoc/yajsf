@@ -8,6 +8,7 @@ import type {
     FieldOption,
     Enum,
 } from "./types"
+
 import htmlTemplate from './templates.html?raw'
 import { FormBuilder } from './builders'
 import { ready, settings } from "./config"
@@ -52,19 +53,19 @@ export function injectTemplateScripts(self: YAJSFForm | YAJSFField): void {
 
 /**
  * Wrap a system widget into a YAJSF component so it can be used within a
- * a YAJSF form. Probably not useful unless if extending the YAJSFForm class.
+ * YAJSF form. Probably not useful unless extending the YAJSFForm class.
  */
 export function wrapSystemField(widget: HTMLElement): YAJSFComponent {
     switch (widget.tagName) {
         case "INPUT":
             return new YAJSFInput(widget)
-            break;
+            break
         case "SELECT":
             return new YAJSFSelect(widget)
-            break;
+            break
         case "TEXTAREA":
             return new YAJSFTextArea(widget)
-            break;
+            break
         default:
             throw new YAJSFError("Unsupported element used with a YAJSF form.")
     }
@@ -122,9 +123,9 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         if (this.schema === null) {
             console.warn(
                 // throw new Error(
-                `No schema provided.  The node containing this form may have been
-         refreshed and this component may have been recreated without the
-         necessary data. See @link`)
+                `No schema provided.  The node containing this form may have
+                 been refreshed and this component may have been recreated
+                 without the necessary data. See @link`)
         } else {
             let schemaErrors = lint(this.schema)
             if (schemaErrors = lint(this.schema)) {
@@ -192,6 +193,8 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
                 uuid4: /^[^\W_]{8}-([^\W_]{8}){3}-[^\W_]{12}$/,
             },
         })
+        // will trigger a formdata event. Probably not ideal if validation
+        // fail
         let formdata = new FormData(this.mainNode)
         let map = formdata.entries().reduce((result: Map, item) => {
             result.set(item[0], item[1])
@@ -250,7 +253,6 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         for (let field of this.querySelectorAll(
             "y-input, y-select, y-textarea, input, select, textarea"
         )) {
-            field as HTMLElement
             if (field.tagName) {
                 try {
                     field = wrapSystemField(field)
@@ -393,6 +395,10 @@ export class YAJSFField extends HTMLElement implements YAJSFComponent {
         for (let [name, value] of Object.entries(attributes)) {
             this.mainNode.setAttribute(name, value)
         }
+    }
+
+    setValue(value: string) {
+        this.mainNode.value = value
     }
 
 }

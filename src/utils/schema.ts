@@ -1,5 +1,4 @@
 import type { Schema, PropertyType, Property, SchemaNode, Enum } from "../types"
-import { mergeObjects } from "./helpers"
 
 
 export class SchemaError extends Error { }
@@ -52,7 +51,7 @@ export class SchemaHelper {
         }
 
         if (anyOf) {
-            fieldSchema = mergeObjects(fieldSchema, this.reduceAnyOf(anyOf))
+            fieldSchema = {...fieldSchema, ...this.reduceAnyOf(anyOf)}
         }
 
         return fieldSchema

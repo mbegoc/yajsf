@@ -62,7 +62,7 @@ class FieldBuilder {
     }
 
     protected name: string
-    protected data: Property
+    protected property: Property
     protected required: Boolean
     protected customization
     public choices?: PropertyType | Enum
@@ -73,10 +73,10 @@ class FieldBuilder {
     protected _format?: string
     protected _attributes?: {[key: string]: string}
 
-    constructor(name: string, data: Property, required: Boolean,
+    constructor(name: string, property: Property, required: Boolean,
                 customization: FieldOption, namePrefix="") {
         this.name = name
-        this.data = data
+        this.property = property
         this.required = required
         this.customization = {...this.typeMapping[this.format],
                               ...customization}
@@ -94,12 +94,12 @@ class FieldBuilder {
 
     get format(): string {
         if (! this._format) {
-            if (this.data.enum) {
+            if (this.property.enum) {
                 return "enum"
-            } else if (this.data.format) {
-                return this.data.format
-            } else if (this.data.type) {
-                return this.data.type
+            } else if (this.property.format) {
+                return this.property.format
+            } else if (this.property.type) {
+                return this.property.type
             } else {
                 return "undefined"
             }
@@ -126,20 +126,22 @@ class FieldBuilder {
                 this._attributes['multiple'] = "multiple"
             }
 
-            // set the initial value of the field: data, default, empty
-            this._attributes['value'] = this.data[this.name] || this.data.default || ''
+            // set the initial value of the field: property, default, empty
+            if (! this._attributes.value && this.property.default) {
+                this._attributes['value'] = this.property.default
+            }
             // check the checkboxes
             if (this._attributes.type === "checkbox"
-                && (this.data[this._attributes.name] || this.data.default)) {
+                && (this.property[this._attributes.name] || this.property.default)) {
                 this._attributes["checked"] = "checked"
             }
             // transfer schema attributes to HTML one
             for (let [fromAttr, toAttr] of Object.entries(this.attrMapping)) {
-                if (typeof(this.data[fromAttr]) !== "undefined") {
-                    this._attributes[toAttr] = this.data[fromAttr]
+                if (typeof(this.property[fromAttr]) !== "undefined") {
+                    this._attributes[toAttr] = this.property[fromAttr]
                 }
             }
-            return {...this._attributes, ...this.customization["attrs"]}
+            this._attributes = {...this._attributes, ...this.customization["attrs"]}
         }
 
         return this._attributes
@@ -159,6 +161,9 @@ class FieldBuilder {
         if (this.widget === "hidden" || this.attributes.type === "hidden") {
             this.attributes.type = "hidden"
             field = document.createElement("input")
+            for (let [name, value] of Object.entries(this.attributes)) {
+                field.setAttribute(name, value)
+            }
         } else {
             let FieldClass = customElements.get(`y-${this.widget}`)
             if (! FieldClass) {
@@ -166,7 +171,7 @@ class FieldBuilder {
             }
             field = new FieldClass() as YAJSFField
             field.appendChild(document.createTextNode(
-                `${this.titlePrefix} ${this.data.title}`))
+                `${this.titlePrefix} ${this.property.title}`))
             field.setAttributes(this.attributes)
         }
 
@@ -214,11 +219,15 @@ export class FormBuilder {
 
     build(): void {
         for (let [name, property, inRequired] of this.schemaHelper.properties()) {
+            let options = Object.assign({}, this.options[name])
+            if (Object.keys(this.data).includes(name)) {
+                options.attrs = {value: this.data[name], ...options.attrs}
+            }
             let fieldBuilder = new FieldBuilder(
                 name,
                 property,
                 inRequired,
-                this.options[name],
+                options,
                 this.namePrefix,
             )
 
@@ -228,8 +237,14 @@ export class FormBuilder {
                     // if a nested model, we don't add options but rather
                     // build a subform
                     let builder = new FormBuilder(
-                        enum_ as Schema, this.root, this.data, this.options, `${name}__`)
+                        enum_ as Schema,
+                        this.root,
+                        this.data,
+                        this.options,
+                        `${name}__`,
+                    )
                     builder.build()
+                    continue
                 } else {
                     fieldBuilder.choices = enum_
                 }
