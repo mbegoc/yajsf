@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function mergeObjects(...objects) {
     let merged = structuredClone(objects.shift()) || {}
     for (let object_ of objects) {

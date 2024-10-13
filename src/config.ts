@@ -9,14 +9,16 @@ import {
 } from "./components"
 
 
-export const settings = baseConfig
+// create a copy without the false writable flag
+// @TODO: can we do that more elegantly?
+export const settings = Object.fromEntries(Object.entries(baseConfig))
 
 
 let setReady = null
 export const ready = new Promise((resolve, reject) => setReady = resolve)
 
 
-export function autoconfigure(options={}) {
+export function registerComponents(options={}) {
     console.groupCollapsed("YAJSF config")
     console.time("YAJSF Init Time")
 
@@ -41,7 +43,5 @@ export function autoconfigure(options={}) {
 
 
 export function configure(options={}) {
-    for (let name in options) {
-        settings[name] = options[name]
-    }
+    Object.assign(settings, options)
 }

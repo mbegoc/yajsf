@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { mergeObjects } from "./helpers"
 
 

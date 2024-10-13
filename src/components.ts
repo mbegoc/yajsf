@@ -79,7 +79,7 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
     static template = templatesRoot.querySelector('#yajsf-form')
     mainNode = null
 
-    constructor(schema=null, data={}, options={}, errors={}) {
+    constructor(schema=null, data={}, options={}, errors=[]) {
         super()
 
         this.template = this.constructor.template
