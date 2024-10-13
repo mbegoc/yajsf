@@ -25,4 +25,5 @@ dist-ssr
 
 # system
 .bash_history
+.bashrc
 .npm
