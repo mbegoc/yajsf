@@ -42,10 +42,10 @@ export function setAttributes(self: YAJSFForm | YAJSFField): void {
  */
 export function injectTemplateScripts(self: YAJSFForm | YAJSFField): void {
     if (settings.injectScripts) {
-        for (let scriptNode of self.shadowRoot.querySelectorAll('script')) {
+        for (let scriptNode of self.shadowRoot!.querySelectorAll('script')) {
             let newScript = document.createElement('script')
             newScript.innerText = scriptNode.innerText
-            self.shadowRoot.replaceChild(newScript, scriptNode)
+            self.shadowRoot!.replaceChild(newScript, scriptNode)
         }
     }
 }
@@ -136,8 +136,8 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
 
         this.attachShadow({ mode: "open" })
         let template = (this.constructor as typeof this).template
-        this.shadowRoot.appendChild(template.content.cloneNode(true))
-        this.mainNode = this.shadowRoot.querySelector('.main')!
+        this.shadowRoot!.appendChild(template.content.cloneNode(true))
+        this.mainNode = this.shadowRoot!.querySelector('.main')!
     }
 
     connectedCallback() {
@@ -271,7 +271,7 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
     setButtonEvents(): void {
         // make buttons outside of the shadow DOM trigger form submitting
         for (let button of this.querySelectorAll("[slot=buttons] button")) {
-            if (button.type === "submit") {
+            if ((button as HTMLButtonElement).type === "submit") {
                 button.addEventListener("click", () => this.mainNode.requestSubmit())
             }
         }
@@ -288,7 +288,7 @@ export class YAJSFForm extends HTMLElement implements YAJSFComponent {
         }
     }
 
-    addField(field: YAJSFField) {
+    addField(field: YAJSFField | HTMLElement) {
         this.fields.set(field.name, field)
         let slot = this.mainNode.querySelector('slot')
         this.mainNode.insertBefore(field, slot)
@@ -310,11 +310,11 @@ export class YAJSFField extends HTMLElement implements YAJSFComponent {
         if (mainNode) {
             this.mainNode = mainNode
             // @FIXME: not sure it's a good idea to do that
-            this.shadowRoot.appendChild(this.mainNode)
+            this.shadowRoot!.appendChild(this.mainNode)
         } else {
             let template = (this.constructor as typeof YAJSFField).template
-            this.shadowRoot.appendChild(template.content.cloneNode(true))
-            this.mainNode = this.shadowRoot.querySelector('.main')!
+            this.shadowRoot!.appendChild(template.content.cloneNode(true))
+            this.mainNode = this.shadowRoot!.querySelector('.main')!
         }
         this.internals_ = this.attachInternals()!
     }
@@ -365,7 +365,7 @@ export class YAJSFField extends HTMLElement implements YAJSFComponent {
     }
 
     addError(error: string): void {
-        let container = this.shadowRoot.querySelector(".errors")
+        let container = this.shadowRoot!.querySelector(".errors")
         if (container) {
             let ul = container.querySelector("ul")
             if (! ul) {
@@ -383,7 +383,7 @@ export class YAJSFField extends HTMLElement implements YAJSFComponent {
     }
 
     clearErrors(): void {
-        let errors = this.shadowRoot.querySelector(".errors")
+        let errors = this.shadowRoot!.querySelector(".errors")
         if (errors) {
             for (let child of errors.children) {
                 errors.removeChild(child)
@@ -413,7 +413,8 @@ export class YAJSFInput extends YAJSFField {
         if (this.internals_.form) {
             this.mainNode.addEventListener('keydown', event => {
                 if ((event as KeyboardEvent).key === "Enter") {
-                    this.internals_.form.requestSubmit()
+                    // the "!" --'
+                    this.internals_!.form!.requestSubmit()
                 }
             })
         }
@@ -428,7 +429,7 @@ export class YAJSFSelect extends YAJSFField {
     connectedCallback() {
         super.connectedCallback()
 
-        let optionsSlot = this.shadowRoot.querySelector('slot[name=options]') as HTMLSlotElement
+        let optionsSlot = this.shadowRoot!.querySelector('slot[name=options]') as HTMLSlotElement
 
         if (optionsSlot) {
             optionsSlot.addEventListener('slotchange', () => {
