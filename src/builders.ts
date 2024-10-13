@@ -36,7 +36,7 @@ class FieldBuilder {
 
         "array": {"widget": "select"},
         "enum": {"widget": "select"},
-        "undefined": {"widget": settings.defaultWidget},
+        "undefined": {"widget": settings.defaultWidget as string},
         // search
         // month
         // image
@@ -204,11 +204,11 @@ export class FormBuilder {
     protected schema: Schema
     protected schemaHelper: SchemaHelper
     protected root: YAJSFForm // circular import?
-    protected data: {}
+    protected data: {[key: string]: string | number | Boolean}
     protected options: FieldOptions
     protected namePrefix: string
 
-    constructor(schema: Schema, root: YAJSFForm, data={}, options={}, namePrefix='') {
+    constructor(schema: Schema, root: YAJSFForm, data: {[key: string]: string | number | Boolean} = {}, options: FieldOptions = {}, namePrefix='') {
         this.schema = schema
         this.root = root
         this.schemaHelper = new SchemaHelper(this.schema)

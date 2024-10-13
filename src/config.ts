@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as baseConfig from './settings.json'
 import {
     YAJSFForm,
@@ -13,11 +12,11 @@ import {
 export const settings = Object.fromEntries(Object.entries(baseConfig))
 
 
-let setReady = null
-export const ready = new Promise((resolve, reject) => setReady = resolve)
+let setReady: Function | null = null
+export const ready = new Promise(resolve => setReady = resolve)
 
 
-export function registerComponents(options={}) {
+export function registerComponents() {
     console.groupCollapsed("YAJSF config")
     console.time("YAJSF Init Time")
 
@@ -35,9 +34,9 @@ export function registerComponents(options={}) {
     customElements.define("y-textarea", YAJSFTextArea)
 
     console.timeLog("YAJSF Init Time")
-    console.groupEnd("YAJSF config")
+    console.groupEnd()
 
-    setReady()
+    setReady!()
 }
 
 

@@ -1,6 +1,9 @@
+import { YAJSFField } from "./components"
+
+
 export type FieldOption = {
     widget?: string
-    attrs?: {[key: string]: string}
+    attrs?: {[key: string]: any}
     type?: string
 }
 
@@ -44,6 +47,7 @@ export type Property = PropertyType & {
 }
 
 
+// @TODO: check if we could use the schemasafe type directly
 export type Schema = {
     [key: string]: any
     title: string
@@ -55,3 +59,7 @@ export type Schema = {
 }
 
 export type SchemaNode = Schema | Property | PropertyType | Reference
+
+export type HTMLField = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+
+export type MixedField = YAJSFField | HTMLField
