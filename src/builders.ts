@@ -1,6 +1,8 @@
 import type {
+    Dict,
+    Literal,
+    HTMLFieldAttributes,
     Schema,
-    PropertyType,
     Property,
     FieldOptions,
     FieldOption,
@@ -13,80 +15,71 @@ import { YAJSFForm, YAJSFField, YAJSFSelect, YAJSFError } from "./components"
 
 class FieldBuilder {
 
-    // types: boolean, string, array, integer, number, object
-    // formats: date-time, date, email, regex, password, uri, time, uuid4
+    // schema types: boolean, string, array, integer, number, object
+    // schema formats, almost a mapping with input types:
+    // date-time, date, email, regex, password, uri, time, uuid4
     protected typeMapping: FieldOptions = {
-        "boolean": {"type": "checkbox"},
-        "date-time": {"type": "datetime-local"},
-        "uri": {"type": "url"},
-        "integer": {"type": "number"},
+        "boolean": {"attrs": {"type": "checkbox"}},
+        "date-time": {"attrs": {"type": "datetime-local"}},
+        "uri": {"attrs": {"type": "url"}},
+        "integer": {"attrs": {"type": "number"}},
+
+        // alternative field types
+        "array": {"widget": "select"},
+        "enum": {"widget": "select"},
+        "undefined": {"widget": settings.defaultWidget},
 
         // we could use the format as the type, but we would need
         // to filter the unsupported formats. It's simpler to just
         // add a mapping for these values and let the default "text"
         // for not matching format
-        "date": {"type": "date"},
-        "time": {"type": "time"},
-        "email": {"type": "email"},
+        "date": {"attrs": {"type": "date"}},
+        "time": {"attrs": {"type": "time"}},
+        "email": {"attrs": {"type": "email"}},
         "number": {
-            "type": "number",
-            "attrs": {"step": settings.defaultNumberStep},
+            "attrs": {"type": "number", "step": settings.defaultNumberStep},
         },
-        "password": {"type": "password"},
-
-        "array": {"widget": "select"},
-        "enum": {"widget": "select"},
-        "undefined": {"widget": settings.defaultWidget as string},
-        // search
-        // month
-        // image
-        // tel
-        // color
-        // week
-        // file
-
-        // radio
-        // hidden
+        "password": {"attrs": {"type": "password"}},
     }
 
-    protected attrMapping: {[key: string]: string} = {
+    protected attrMapping: Dict<keyof HTMLFieldAttributes> = {
         "minLength": "minlength",
         "maxLength": "maxlength",
         "maximum": "max",
         "minimum": "min",
         "exclusiveMinimum": "min", // +1
         "exclusiveMaximum": "max", // -1
-        // pattern
+        // "pattern": "pattern",
         // readonly
         // step
     }
 
     protected name: string
     protected property: Property
-    protected required: Boolean
-    protected customization
-    public choices?: PropertyType | Enum
-    protected titlePrefix: string
+    protected required: boolean
+    protected customization: FieldOption
+    public choices?: Enum
     protected namePrefix: string
+    protected titlePrefix: string
 
     protected _widget?: string
     protected _format?: string
-    protected _attributes?: {[key: string]: string}
+    protected _attributes?: HTMLFieldAttributes
 
-    constructor(name: string, property: Property, required: Boolean,
-                customization: FieldOption, namePrefix="") {
+    constructor(name: string, property: Property, required: boolean,
+                customization: FieldOption, namePrefix="", titlePrefix="") {
         this.name = name
         this.property = property
         this.required = required
         this.customization = {...this.typeMapping[this.format],
                               ...customization}
         this.namePrefix = namePrefix
-        this.titlePrefix = ""  // configurable?
+        this.titlePrefix = titlePrefix
     }
 
     get widget(): string {
         if (! this._widget) {
-            this._widget = this.customization?.widget || "input"
+            this._widget = this.customization.widget || "input"
         }
 
         return this._widget
@@ -108,17 +101,36 @@ class FieldBuilder {
         return this._format
     }
 
-    get attributes(): {[key: string]: string} {
+    get attributes(): HTMLFieldAttributes {
         if (! this._attributes) {
             this._attributes = {"name": `${this.namePrefix}${this.name}`}
             if (this.widget === "input") {
-                this._attributes["type"] = this.customization?.type || "text"
+                this._attributes["type"] = this.customization.attrs?.type || "text"
             }
 
             // is the field required?
             if (this.required) {
                 this._attributes["required"] = "required"
             }
+
+            let title = []
+            if (this.required) {
+                title.push(settings.requiredTitlePrefix)
+            }
+            if (settings.titlePrefix) {
+                title.push(settings.titlePrefix)
+                title.push(settings.titleSeparator)
+            }
+            if (this.titlePrefix) {
+                title.push(this.titlePrefix)
+                title.push(settings.titleSeparator)
+            }
+            if (this.customization["title"]) {
+                title.push(this.customization["title"])
+            } else {
+                title.push(this.property.title)
+            }
+            this._attributes["title"] = title.join(" ")
 
             // if the field is a list, allow to add multiple options
             // @TODO: handle multiple subforms
@@ -132,7 +144,7 @@ class FieldBuilder {
             }
             // check the checkboxes
             if (this._attributes.type === "checkbox"
-                && (this.property[this._attributes.name] || this.property.default)) {
+                    && (this._attributes.value || this.property.default)) {
                 this._attributes["checked"] = "checked"
             }
             // transfer schema attributes to HTML one
@@ -141,42 +153,25 @@ class FieldBuilder {
                     this._attributes[toAttr] = this.property[fromAttr]
                 }
             }
-            this._attributes = {...this._attributes, ...this.customization["attrs"]}
+            this._attributes = {...this._attributes,
+                                ...this.customization["attrs"]}
         }
 
         return this._attributes
     }
 
-    build(): YAJSFField | HTMLInputElement {
-        let field
+    build(): YAJSFField {
         if (this.attributes["type"] === "number"
                 && (this.attributes["max"] as any - (this.attributes["min"] as any)) < 50) {
             this.attributes["type"] = "range"
         }
-
-        if (this.attributes['required']) {
-            this.titlePrefix = "* "
-        }
         
-        if (this.widget === "hidden" || this.attributes.type === "hidden") {
-            this.attributes.type = "hidden"
-            field = document.createElement("input")
-            for (let [name, value] of Object.entries(this.attributes)) {
-                field.setAttribute(name, value)
-            }
-        } else {
-            let FieldClass = customElements.get(`y-${this.widget}`)
-            if (! FieldClass) {
-                throw new YAJSFError("Field type is not a registered custom element")
-            }
-            field = new FieldClass() as YAJSFField
-            field.appendChild(document.createTextNode(
-                `${this.titlePrefix} ${this.property.title}`))
-            field.setAttributes(this.attributes)
+        let FieldClass = customElements.get(`y-${this.widget}`)
+        if (! FieldClass) {
+            throw new YAJSFError("Field type is not a registered custom element")
         }
-
-        // needed for including the field into the generated formData
-        field.setAttribute("name", this.attributes.name)
+        let field = new FieldClass() as YAJSFField
+        field.setAttributes(this.attributes)
 
         // select doesn't support passing options through slots, we need to
         // programatically add them
@@ -186,7 +181,7 @@ class FieldBuilder {
             }
             for (let choice of this.choices as string[]) {
                 let optionElement = document.createElement('option')
-                optionElement.value = optionElement.text = choice as string
+                optionElement.value = optionElement.label = choice
                 if (this.attributes.value === choice) {
                     optionElement.setAttribute('selected', 'selected')
                 }
@@ -203,21 +198,24 @@ class FieldBuilder {
 export class FormBuilder {
     protected schema: Schema
     protected schemaHelper: SchemaHelper
-    protected root: YAJSFForm // circular import?
-    protected data: {[key: string]: string | number | Boolean}
+    protected root: YAJSFForm
+    protected data: Dict<Literal>
     protected options: FieldOptions
     protected namePrefix: string
+    protected titlePrefix: string
 
-    constructor(schema: Schema, root: YAJSFForm, data: {[key: string]: string | number | Boolean} = {}, options: FieldOptions = {}, namePrefix='') {
+    constructor(schema: Schema, root: YAJSFForm, data: Dict<Literal> = {},
+                options: FieldOptions = {}, namePrefix="", titlePrefix="") {
         this.schema = schema
         this.root = root
         this.schemaHelper = new SchemaHelper(this.schema)
         this.data = data
         this.options = options
         this.namePrefix = namePrefix
+        this.titlePrefix = titlePrefix
     }
 
-    build(): void {
+    build() {
         for (let [name, property, inRequired] of this.schemaHelper.properties()) {
             let options = Object.assign({}, this.options[name])
             if (Object.keys(this.data).includes(name)) {
@@ -229,24 +227,26 @@ export class FormBuilder {
                 inRequired,
                 options,
                 this.namePrefix,
+                this.titlePrefix,
             )
 
             if (fieldBuilder.widget === 'select') {
-                let enum_ = this.schemaHelper.getEnum(property)
-                if ((enum_ as Schema).type === "object") {
+                let subSchema = this.schemaHelper.getSubSchema(property)
+                if (subSchema) {
                     // if a nested model, we don't add options but rather
                     // build a subform
                     let builder = new FormBuilder(
-                        enum_ as Schema,
+                        subSchema,
                         this.root,
                         this.data,
                         this.options,
-                        `${name}__`,
+                        `${name}/`,
+                        property.title,
                     )
                     builder.build()
                     continue
                 } else {
-                    fieldBuilder.choices = enum_
+                    fieldBuilder.choices = this.schemaHelper.getEnum(property)
                 }
             }
 

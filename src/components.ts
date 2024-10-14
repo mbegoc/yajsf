@@ -1,10 +1,9 @@
 import { parser, lint, Schema as SchemaSafe } from '@exodus/schemasafe'
 
 import type {
-    Schema,
-    FieldOptions,
-    MixedField,
+    InputAttributes,
     HTMLField,
+    FormSettings,
 } from "./types"
 
 import htmlTemplate from './templates.html?raw'
@@ -14,7 +13,7 @@ import { SchemaHelper } from "./utils/schema"
 
 
 // Parse the text template by building a DOM
-let templatesRoot: HTMLHtmlElement = document.createElement('html')
+let templatesRoot = document.createElement('html')
 templatesRoot.innerHTML = htmlTemplate
 
 
@@ -23,7 +22,7 @@ templatesRoot.innerHTML = htmlTemplate
  * from the component attributes. It allow to use a custom components with
  * the same interface than the underlying widget.
  */
-export function setAttributes(self: YAJSFForm | YAJSFField): void {
+export function setAttributes(self: YAJSFForm | YAJSFField) {
     for (let attribute of self.attributes) {
       self.mainNode.setAttribute(attribute.name, attribute.value)
     }
@@ -38,7 +37,7 @@ export function setAttributes(self: YAJSFForm | YAJSFField): void {
  *
  * See if we actually need to be able to embed scripts in templates.
  */
-export function injectTemplateScripts(self: YAJSFForm | YAJSFField): void {
+export function injectTemplateScripts(self: YAJSFForm | YAJSFField) {
     if (settings.injectScripts) {
         for (let scriptNode of self.shadowRoot!.querySelectorAll('script')) {
             let newScript = document.createElement('script')
@@ -50,19 +49,23 @@ export function injectTemplateScripts(self: YAJSFForm | YAJSFField): void {
 
 
 /**
- * Wrap a system widget into a YAJSF component so it can be used within a
+ * Wrap a system field into a YAJSF component so it can be used within a
  * YAJSF form. Probably not useful unless extending the YAJSFForm class.
  */
-export function wrapSystemField(widget: HTMLField): YAJSFField {
-    switch (widget.tagName) {
+export function wrapSystemField(field: HTMLField): YAJSFField {
+    switch (field.tagName) {
         case "INPUT":
-            return new YAJSFInput(widget)
+            if (field.type === "hidden") {
+                return new YAJSFField(field)
+            } else {
+                return new YAJSFInput(field)
+            }
             break
         case "SELECT":
-            return new YAJSFSelect(widget)
+            return new YAJSFSelect(field)
             break
         case "TEXTAREA":
-            return new YAJSFTextArea(widget)
+            return new YAJSFTextArea(field)
             break
         default:
             throw new YAJSFError("Unsupported element used with a YAJSF form.")
@@ -78,15 +81,14 @@ export class YAJSFForm extends HTMLElement {
     static template = templatesRoot.querySelector('#yajsf-form') as HTMLTemplateElement
     mainNode: HTMLFormElement
     protected internalId: string
-    protected schema!: Schema
-    protected data?: {[key: string]: string}
-    protected options!: FieldOptions
-    protected errors!: {[key: string]: any}[]
+    protected schema?: FormSettings["schema"]
+    protected data?: FormSettings["data"]
+    protected options?: FormSettings["options"]
+    protected errors?: FormSettings["errors"]
     protected schemaHelper!: SchemaHelper
-    protected fields: Map<string, MixedField> = new Map()
+    protected fields: Map<string, YAJSFField> = new Map()
 
-    constructor(schema?: Schema, data: {[key: string]: string} = {},
-                options: FieldOptions = {}, errors: {[key: string]: any}[] = []) {
+    constructor(formSettings: FormSettings) {
         super()
 
         if (this.id) {
@@ -96,38 +98,54 @@ export class YAJSFForm extends HTMLElement {
             this.internalId = String(Math.round(Math.random()*10000))
         }
 
-        // get data either from the params or the dataset
-        let attrs = {"schema": schema, "data": data,
-                       "options": options, "errors": errors}
-        for (let attr in attrs) {
-            try {
-                let str = this.dataset[attr] as string
-                (this as any)[attr] = JSON.parse(str)
-            } catch(exc) {
-                (this as any)[attr] = (attrs as any)[attr]
+        if (! formSettings) {
+            let attrs: (keyof FormSettings)[] = [
+                "schema", "data", "options", "errors"]
+            for (let attr of attrs) {
+                if (this.dataset[attr]) {
+                    try{
+                        formSettings = Object.assign(
+                            formSettings || {},
+                            {[attr]: JSON.parse(this.dataset[attr])},
+                        )
+                    } catch(exc) {
+                        console.warn(`YAJSF ― Couldn't load data-${attr}. ` +
+                                     `Continue with an empty value.\n`, exc)
+                    }
+                }
             }
         }
 
+
         console.groupCollapsed(`YAJSF ― Form creation ${this.internalId}`)
         console.debug(this)
-        console.debug("Schema", schema)
-        console.debug("Data", data)
-        console.debug("Options", options)
         console.debug("Dataset", this.dataset)
 
-        if (this.schema === null) {
+        if (! formSettings) {
             console.warn(
                 // throw new Error(
                 `No schema provided.  The node containing this form may have
                  been refreshed and this component may have been recreated
                  without the necessary data. See @link`)
         } else {
+            this.schema = formSettings.schema
+            this.data = formSettings.data
+            this.options = formSettings.options
+            this.errors = formSettings.errors
+
             let schemaErrors = lint(this.schema as SchemaSafe)
             if (schemaErrors ) {
                 console.warn("YAJSF ― Schema errors were found", schemaErrors)
             }
             this.schemaHelper = new SchemaHelper(this.schema)
         }
+
+        console.debug("Schema", this.schema)
+        console.debug("Data", this.data)
+        console.debug("Options", this.options)
+        console.debug("Errors", this.errors)
+
+        console.groupEnd()
 
         this.attachShadow({ mode: "open" })
         let template = YAJSFForm.template
@@ -137,7 +155,12 @@ export class YAJSFForm extends HTMLElement {
 
     connectedCallback() {
         if (this.schema) {
-            let builder = new FormBuilder(this.schema, this, this.data, this.options)
+            let builder = new FormBuilder(
+                this.schema,
+                this,
+                this.data,
+                this.options,
+            )
             builder.build()
         }
 
@@ -147,48 +170,39 @@ export class YAJSFForm extends HTMLElement {
         injectTemplateScripts(this)
 
         // display initial errors
-        for (let error of this.errors) {
-            for (let loc of error.loc) {
-                let field = this.fields.get(loc)
-                if (field) {
-                    (field as YAJSFField).addError(error.msg)
+        if (this.errors) {
+            for (let error of this.errors) {
+                for (let loc of error.loc) {
+                    let field = this.fields.get(loc)
+                    if (field) {
+                        field.addError(error.msg)
+                    }
                 }
             }
         }
 
-        console.groupEnd()
-
-        this.mainNode.addEventListener("submit", event =>
-            this.submit(event as SubmitEvent))
+        this.mainNode.addEventListener<"submit">("submit", event =>
+            this.submit(event))
         this.mainNode.addEventListener('formdata', event =>
             console.info("YAJSF ― FormData available", event.formData))
     }
 
-    validate(): Boolean {
+    validate(): boolean {
         return this.systemValidate() && this.schemaValidate()
     }
 
-    systemValidate(): Boolean {
+    systemValidate(): boolean {
         return (this.fields.values() as any).reduce(
-            (valid: Boolean, field: YAJSFField) =>
+            (valid: boolean, field: YAJSFField) =>
                 field.validate(! this.mainNode.noValidate) && valid, true)
     }
 
     /**
      * @FIXME: Exploratory code (too complex IMAO)
      */
-    schemaValidate(): Boolean {
-        let validate = parser(this.schema as SchemaSafe, {
-            $schemaDefault: "https://json-schema.org/draft/2020-12/schema",
-            mode: "default",
-            allErrors: true,
-            includeErrors: true,
-            extraFormats: true,
-            formats: {
-                password: /^[^\s]$/,
-                uuid4: /^[^\W_]{8}-([^\W_]{8}){3}-[^\W_]{12}$/,
-            },
-        })
+    schemaValidate(): boolean {
+        let validate = parser(this.schema as SchemaSafe,
+                              settings.schemasafeValidationOptions)
         // will trigger a formdata event. Probably not ideal if validation
         // fail
         let formdata = new FormData(this.mainNode)
@@ -211,7 +225,7 @@ export class YAJSFForm extends HTMLElement {
 
             for (let errorList of errors.entries()) {
                 let name = errorList[0]
-                let field = this.mainNode.querySelector(`[name=${name}]`) as YAJSFField
+                let field = this.mainNode.querySelector<YAJSFField>(`[name=${name}]`)
                 if (! field) {
                     continue  // nested forms
                 }
@@ -247,39 +261,40 @@ export class YAJSFForm extends HTMLElement {
         return new FormData(this.mainNode)
     }
 
-    addInlineFields(): void {
-        for (let field of this.querySelectorAll(
-            "y-input, y-select, y-textarea"
-        )) {
-            this.addField(field as YAJSFField)
+    addInlineFields() {
+        for (let field of this.querySelectorAll<YAJSFField>(
+                "y-input, y-select, y-textarea")) {
+            this.addField(field)
         }
-        for (let field of this.querySelectorAll("input, select, textarea")) {
-            this.addField(wrapSystemField(field as HTMLField))
+        for (let field of this.querySelectorAll<HTMLField>(
+                "input, select, textarea")) {
+            this.addField(wrapSystemField(field))
         }
     }
 
-    setButtonEvents(): void {
+    setButtonEvents() {
         // make buttons outside of the shadow DOM trigger form submitting
-        for (let button of this.querySelectorAll("[slot=buttons] button")) {
-            if ((button as HTMLButtonElement).type === "submit") {
+        for (let button of this.querySelectorAll<HTMLButtonElement>(
+                "[slot=buttons] button")) {
+            if (button.type === "submit") {
                 button.addEventListener("click", () => this.mainNode.requestSubmit())
             }
         }
 
         // a bit overkill, but handle fields reset as well
         for (let [dom, selPrefix] of [[this, '[slot=buttons]>'], [this.shadowRoot, '']]) {
-            for (let button of (dom as HTMLElement).querySelectorAll(
+            for (let button of (dom as HTMLElement).querySelectorAll<YAJSFField>(
                     `${selPrefix}button[type=reset],input[type=reset]`)) {
                 button.addEventListener("click", () => {
                     for (let field of this.fields.values()) {
-                        (field as YAJSFField).setValue('')
+                        field.setValue('')
                     }
                 })
             }
         }
     }
 
-    addField(field: YAJSFField | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) {
+    addField(field: YAJSFField) {
         this.fields.set(field.name, field)
         let slot = this.mainNode.querySelector('slot')
         this.mainNode.insertBefore(field, slot)
@@ -289,12 +304,12 @@ export class YAJSFForm extends HTMLElement {
 
 
 export class YAJSFField extends HTMLElement {
-    static template: HTMLTemplateElement
+    static template = templatesRoot.querySelector('#yajsf-system') as HTMLTemplateElement
     static formAssociated = true
     mainNode: HTMLField
     protected internals_: ElementInternals
 
-    constructor(mainNode: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null = null) {
+    constructor(mainNode: HTMLField | null = null) {
         super()
 
         this.attachShadow({ mode: "open" })
@@ -333,7 +348,7 @@ export class YAJSFField extends HTMLElement {
         return this.mainNode.name
     }
 
-    validate(systemReport: Boolean): Boolean {
+    validate(systemReport: boolean): boolean {
         if (settings.integrateSystemValidationMessage) {
             if (this.clearErrors) {
                 this.clearErrors()
@@ -348,14 +363,14 @@ export class YAJSFField extends HTMLElement {
         return true
     }
     
-    setErrors(errors: string[]): void {
+    setErrors(errors: string[]) {
         this.clearErrors()
         for (let error of errors) {
             this.addError(error)
         }
     }
 
-    addError(error: string): void {
+    addError(error: string) {
         let container = this.shadowRoot!.querySelector(".errors")
         if (container) {
             let ul = container.querySelector("ul")
@@ -373,7 +388,7 @@ export class YAJSFField extends HTMLElement {
         }
     }
 
-    clearErrors(): void {
+    clearErrors() {
         let errors = this.shadowRoot!.querySelector(".errors")
         if (errors) {
             for (let child of errors.children) {
@@ -382,14 +397,26 @@ export class YAJSFField extends HTMLElement {
         }
     }
 
-    setAttributes(attributes: {[key: string]: string}): void {
+    setAttributes(attributes: InputAttributes) {
         for (let [name, value] of Object.entries(attributes)) {
-            this.mainNode.setAttribute(name, value)
+            if (name === "title") {
+                if (attributes.type !== "hidden") {
+                    this.setTitle(value as string)
+                }
+            } else {
+                this.mainNode.setAttribute(name, value as string)
+            }
         }
     }
 
     setValue(value: string) {
         this.mainNode.value = value
+    }
+
+    setTitle(title: string) {
+        if (this.mainNode.type !== "hidden") {
+            this.appendChild(document.createTextNode(title))
+        }
     }
 
 }
@@ -420,7 +447,7 @@ export class YAJSFSelect extends YAJSFField {
     connectedCallback() {
         super.connectedCallback()
 
-        let optionsSlot = this.shadowRoot!.querySelector('slot[name=options]') as HTMLSlotElement
+        let optionsSlot = this.shadowRoot!.querySelector<HTMLSlotElement>('slot[name=options]')
 
         if (optionsSlot) {
             optionsSlot.addEventListener('slotchange', () => {

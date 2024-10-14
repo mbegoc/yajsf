@@ -10,11 +10,11 @@ export class SchemaHelper {
         this.schema = schema
     }
 
-    * properties(): Iterable<[string, Property, Boolean]> {
+    * properties(): Iterable<[string, Property, boolean]> {
         for (let name in this.schema.properties) {
             yield [
                 name,
-                this.getProperty(name) as Property,
+                this.getProperty(name),
                 Boolean(this.schema.required?.includes(name)),
             ]
         }
@@ -31,19 +31,19 @@ export class SchemaHelper {
         } else if (! node) {
             throw new SchemaError("The path is relative but no node is provided")
         }
-        return this._getNode(split, node, name)
+        return this._getNode(split, node)
     }
 
-    protected _getNode(path: string[], node: SchemaNode, initial: string): SchemaNode {
-        let name = path.shift()
-        if (name) {
-            return this._getNode(path, node[name], initial)
+    protected _getNode(path: string[], node: SchemaNode): SchemaNode {
+        let key = path.shift()
+        if (key) {
+            return this._getNode(path, node[key])
         } else {
             return node
         }
     }
 
-    getProperty(name: string): PropertyType {
+    getProperty(name: string): Property {
         let {$ref, anyOf, ...fieldSchema}: any = this.schema.properties[name]
 
         if ($ref) {
@@ -63,14 +63,28 @@ export class SchemaHelper {
         return anyOf.reduce((r, i) => i["format"] && i["type"] ? i : r)
     }
 
-    getEnum(node: SchemaNode): Enum | Schema {
-        let {enum: enum_, items, $ref}: any = node
-        if (enum_ || items) {
-            return this.getEnum(enum_ || items)
-        } else if ($ref) {
-            return this.getEnum(this.getNode($ref))
+    getSubSchema(node: Property): Schema | undefined {
+        // @TODO: check if it could exist other cases
+        let $ref = node.$ref || node.items?.$ref
+        if ($ref) {
+            let refNode = this.getNode($ref)
+            if (refNode.properties) {
+                return refNode as Schema
+            }
         }
-        return node as string[]
+
+        return undefined
+    }
+
+    getEnum(node: SchemaNode): Enum {
+        if (node.enum) {
+            return node.enum
+        } else if (node.items) {
+            return this.getEnum(node.items)
+        } else if (node.$ref) {
+            return this.getEnum(this.getNode(node.$ref))
+        }
+        throw new SchemaError("Not an enum node")
     }
 
 }

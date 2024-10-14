@@ -15,6 +15,12 @@
 </template>
 
 
+<template id="yajsf-system">
+  <slot name="errors" class="errors"></slot>
+  <slot><input class="main"/></slot>
+</template>
+
+
 <template id="yajsf-input">
   <style>
     :host, .label {
@@ -43,7 +49,7 @@
   <!-- it's confusing to have a select included into an input thing -->
   <y-input>
     <slot><!-- title --></slot>
-    <slot name="errors" slot="errors"></slot>
+    <slot name="errors" slot="errors" class="errors"></slot>
     <slot name="options"></slot>
     <select slot="input" class="main"></select>
   </y-input>
@@ -53,7 +59,7 @@
 <template id="yajsf-textarea">
   <y-input>
     <slot><!-- title --></slot>
-    <slot name="errors" slot="errors"></slot>
+    <slot name="errors" slot="errors" class="errors"></slot>
     <textarea slot="input" class="main"></textarea>
   </y-input>
 </template>

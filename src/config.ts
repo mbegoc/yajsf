@@ -1,6 +1,9 @@
-import * as baseConfig from './settings.json'
+import { settings } from './settings'
+export { settings } from './settings'
+// import type { Settings } from "./types"
 import {
     YAJSFForm,
+    YAJSFField,
     YAJSFInput,
     YAJSFSelect,
     YAJSFTextArea,
@@ -9,7 +12,7 @@ import {
 
 // create a copy without the false writable flag
 // @TODO: can we do that more elegantly?
-export const settings = Object.fromEntries(Object.entries(baseConfig))
+// export settings = Object.fromEntries(Object.entries(baseConfig))
 
 
 let setReady: Function | null = null
@@ -23,6 +26,9 @@ export function registerComponents() {
     // register the components as custom elements
     console.info("Register y-form")
     customElements.define("y-form", YAJSFForm)
+
+    console.info("Register y-system")
+    customElements.define("y-system", YAJSFField)
 
     console.info("Register y-input")
     customElements.define("y-input", YAJSFInput)
