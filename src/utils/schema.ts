@@ -1,9 +1,10 @@
 import type {
     Schema,
     PropertyType,
-    Reference,
     Property,
+    Reference,
     SchemaNode,
+    MixedSchemaNode,
     Enum,
 } from "../types"
 
@@ -27,7 +28,7 @@ export class SchemaHelper {
         }
     }
 
-    getNode(name: string, node?: SchemaNode): SchemaNode{
+    getNode(name: string, node?: MixedSchemaNode): SchemaNode{
         let split = name.split("/")
         if (split[0] === "#") {
             split.shift()
@@ -41,7 +42,7 @@ export class SchemaHelper {
         return this._getNode(split, node)
     }
 
-    protected _getNode(path: string[], node: SchemaNode): SchemaNode {
+    protected _getNode(path: string[], node: MixedSchemaNode): SchemaNode {
         let key = path.shift()
         if (key) {
             return this._getNode(path, node[key])
@@ -70,11 +71,11 @@ export class SchemaHelper {
         return anyOf.reduce((r, i) => i["format"] && i["type"] ? i : r)
     }
 
-    getSubSchema(node: SchemaNode): Schema | undefined {
+    getSubSchema(node: MixedSchemaNode): Schema | undefined {
         // @TODO: check if it could exist other cases
-        let $ref = node.$ref || (node.items as Reference).$ref
+        let $ref = node.$ref || node.items && (node.items as Reference).$ref
         if ($ref) {
-            let refNode = this.getNode($ref)
+            let refNode = this.getNode($ref) as MixedSchemaNode
             if (refNode.properties) {
                 return refNode as Schema
             }
@@ -83,7 +84,7 @@ export class SchemaHelper {
         return undefined
     }
 
-    getEnum(node: SchemaNode): Enum {
+    getEnum(node: MixedSchemaNode): Enum {
         if (node.enum) {
             return node.enum
         } else if (node.items) {

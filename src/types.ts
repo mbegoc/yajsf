@@ -127,4 +127,7 @@ export type FormSettings = {
 }
 
 
-export type SchemaNode = Partial<Schema & Property & PropertyType & Reference>
+export type SchemaNode = Schema | Property | PropertyType | Reference
+
+
+export type MixedSchemaNode = Partial<Schema & Property & PropertyType & Reference>
