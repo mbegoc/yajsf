@@ -1,4 +1,11 @@
-import type { Schema, PropertyType, Property, SchemaNode, Enum } from "../types"
+import type {
+    Schema,
+    PropertyType,
+    Reference,
+    Property,
+    SchemaNode,
+    Enum,
+} from "../types"
 
 
 export class SchemaError extends Error { }
@@ -58,14 +65,14 @@ export class SchemaHelper {
     }
 
     reduceAnyOf(anyOf: PropertyType[]): PropertyType {
-        // @KLUDGE: not sure for this behavior, how to determine the right type
+        // @KLUDGE: not sure of this behavior, how to determine the right type
         // and validation to apply on the field?
         return anyOf.reduce((r, i) => i["format"] && i["type"] ? i : r)
     }
 
-    getSubSchema(node: Property): Schema | undefined {
+    getSubSchema(node: SchemaNode): Schema | undefined {
         // @TODO: check if it could exist other cases
-        let $ref = node.$ref || node.items?.$ref
+        let $ref = node.$ref || (node.items as Reference).$ref
         if ($ref) {
             let refNode = this.getNode($ref)
             if (refNode.properties) {

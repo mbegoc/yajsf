@@ -1,4 +1,5 @@
 import { settings } from "../config"
+import { Dict } from "../types"
 
 
 export const ERROR = 50
@@ -8,7 +9,7 @@ export const INFO = 20
 export const DEBUG = 10
 
 
-const themes = {
+const themes: Dict = {
     "Default": {bgColor: "gray", color: "black", icon: "⚙"},
     "Blue": {bgColor: "darkblue", color: "lightgrey", icon: "⚘"},
     "Orange": {bgColor: "darkorange", color: "black", icon: "⚘"},
@@ -26,13 +27,17 @@ const themes = {
 
 
 class Logger {
+    protected inGroup = false
+    protected section!: string
+    protected labelStyle!: string
+    protected textStyle!: string
 
-    constructor(section, theme) {
+    constructor(section: string, theme: string) {
         this.section = section
         this.loadTheme(theme)
     }
 
-    loadTheme(theme) {
+    loadTheme(theme: string) {
         if (! themes[theme]) {
             this.warn(`YAJSF ― Logging: cannot find theme “${theme}”. `
                       + "Fallback to default.")
@@ -44,13 +49,14 @@ class Logger {
         this.section = [icon, this.section].join(" ")
     }
 
-    writeLog(consoleCall, level, args) {
+    writeLog(consoleCall: Function, level: number, args: any[]) {
         if (settings.logLevel <= level) {
             consoleCall(...args)
         }
     }
 
-    writeRichLog(consoleCall, level, args, firstArg=null) {
+    writeRichLog(consoleCall: Function, level: number,
+                 args: any[], firstArg: any = null) {
         if (settings.logLevel <= level) {
             let pattern = ""
             let richArgs = []
@@ -77,91 +83,84 @@ class Logger {
         }
     }
 
-    error(...args) {
+    error(...args: any[]) {
         this.writeRichLog(console.error, ERROR, args)
     }
 
-    warn(...args) {
+    warn(...args: any[]) {
         this.writeRichLog(console.warn, WARN, args)
     }
 
-    log(...args) {
+    log(...args: any[]) {
         this.writeRichLog(console.log, LOG, args)
     }
 
-    info(...args) {
+    info(...args: any[]) {
         this.writeRichLog(console.info, INFO, args)
     }
 
-    debug(...args) {
+    debug(...args: any[]) {
         this.writeRichLog(console.debug, DEBUG, args)
     }
 
-    assert(...args) {
-        this.writeLog(console.assert, DEBUG, args, args.shift())
+    assert(...args: any[]) {
+        this.writeLog(console.assert, DEBUG, args)
     }
 
-    trace(...args) {
+    trace(...args: any[]) {
         this.writeRichLog(console.trace, DEBUG, args)
     }
 
-    table(...args) {
+    table(...args: any[]) {
         this.writeRichLog(console.table, DEBUG, args)
     }
 
-    time(...args) {
+    time(...args: any[]) {
         this.writeRichLog(console.time, DEBUG, args, args.shift())
     }
 
-    timeEnd(...args) {
+    timeEnd(...args: any[]) {
         this.writeRichLog(console.timeEnd, DEBUG, args, args.shift())
     }
 
-    timeLog(...args) {
+    timeLog(...args: any[]) {
         this.writeRichLog(console.timeLog, DEBUG, args, args.shift())
     }
 
-    profile(...args) {
-        this.writeLog(console.profile, DEBUG, args)
+    count(...args: any[]) {
+        this.writeLog(console.count, DEBUG, args)
     }
 
-    profileEnd(...args) {
-        this.writeLog(console.profileEnd, DEBUG, args)
-    }
-
-    count(...args) {
-        this.writeLog(console.count, DEBUG, args, args.shift())
-    }
-
-    countReset(...args) {
+    countReset(...args: any[]) {
         this.writeRichLog(console.countReset, DEBUG, args, args.shift())
     }
 
-    exception(...args) {
+    exception(...args: any[]) {
+        // @ts-ignore
         this.writeLog(console.exception, DEBUG, args)
     }
 
-    dir(...args) {
+    dir(...args: any[]) {
         this.writeLog(console.dir, DEBUG, args)
     }
 
-    groupCollapsed(...args) {
+    groupCollapsed(...args: any[]) {
         this.writeRichLog(console.groupCollapsed, DEBUG, args)
         this.inGroup = true
     }
 
-    group(...args) {
+    group(...args: any[]) {
         this.writeRichLog(console.group, DEBUG, args)
         this.inGroup = true
     }
 
-    groupEnd(...args) {
+    groupEnd(...args: any[]) {
         this.writeLog(console.groupEnd, DEBUG, args)
         this.inGroup = false
     }
 
 }
 
-export function getLogger(section, theme="Default") {
+export function getLogger(section: string, theme="Default"): Logger {
     return new Logger(section, theme)
 }

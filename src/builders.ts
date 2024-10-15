@@ -149,8 +149,8 @@ class FieldBuilder {
             }
             // transfer schema attributes to HTML one
             for (let [fromAttr, toAttr] of Object.entries(this.attrMapping)) {
-                if (typeof(this.property[fromAttr]) !== "undefined") {
-                    this._attributes[toAttr] = this.property[fromAttr]
+                if (typeof(this.property[fromAttr as keyof Property]) !== "undefined") {
+                    this._attributes[toAttr] = this.property[fromAttr as keyof Property]
                 }
             }
             this._attributes = {...this._attributes,

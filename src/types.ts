@@ -77,7 +77,6 @@ export type FieldOptions = Dict<FieldOption>
 
 
 export type Reference = {
-    [key: string]: `#/${string}`
     $ref: `#/${string}`
 }
 
@@ -86,7 +85,6 @@ export type Enum = Literal[]
 
 
 export type PropertyType = {
-    [key: string]: any
     type?: string
     format?: string
     enum?: Enum
@@ -103,7 +101,6 @@ export type PropertyType = {
 
 
 export type Property = PropertyType & {
-    [key: string]: any
     title: string
     additionalProperties?: PropertyType
     anyOf?: PropertyType[]
@@ -116,10 +113,11 @@ export type Schema = {
     title: string
     type: string
     description: string
-    properties: {[key: string]: Property|Reference}
+    properties: Dict<Property|Reference>
     $def?: Property | Schema
     required?: string[]
 }
+
 
 export type FormSettings = {
     schema: Schema
@@ -128,4 +126,5 @@ export type FormSettings = {
     errors?: Dict[]
 }
 
-export type SchemaNode = Schema | Property | PropertyType | Reference
+
+export type SchemaNode = Partial<Schema & Property & PropertyType & Reference>
