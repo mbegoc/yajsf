@@ -116,19 +116,19 @@ class Logger {
     }
 
     time(...args: any[]) {
-        this.writeRichLog(console.time, DEBUG, args, args.shift())
+        this.writeLog(console.time, DEBUG, args)
     }
 
     timeEnd(...args: any[]) {
-        this.writeRichLog(console.timeEnd, DEBUG, args, args.shift())
+        this.writeLog(console.timeEnd, DEBUG, args)
     }
 
     timeLog(...args: any[]) {
-        this.writeRichLog(console.timeLog, DEBUG, args, args.shift())
+        this.writeLog(console.timeLog, DEBUG, args)
     }
 
     count(...args: any[]) {
-        this.writeLog(console.count, DEBUG, args)
+        this.writeRichLog(console.count, DEBUG, args, args.shift())
     }
 
     countReset(...args: any[]) {
