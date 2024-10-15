@@ -38,9 +38,10 @@ High level architecture
 Roadmap
 -------
 
+- Evaluate which validation lib is the best fit
+- Make a way of sharing error messages between the backend and frontend
 - Generates specific techonology templates from a meta template so homogeneity
   accross tiers and technologies is guaranted
-- Make it public friendly through configuration
 - Allow to set attributes on others nodes than the main one
 - Make it validate schema against schemas definition versions
 - Typing

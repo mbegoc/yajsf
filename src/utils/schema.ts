@@ -1,28 +1,26 @@
-import { mergeObjects } from "./helpers"
+import type { Schema, PropertyType, Property, SchemaNode, Enum } from "../types"
 
 
-export class SchemaError extends Error {
-    name = "SchemaError"
-}
+export class SchemaError extends Error { }
 
 
 export class SchemaHelper {
-    constructor(schema) {
+    protected schema: Schema
+    constructor(schema: Schema) {
         this.schema = schema
     }
 
-    * properties() {
+    * properties(): Iterable<[string, Property, boolean]> {
         for (let name in this.schema.properties) {
             yield [
                 name,
                 this.getProperty(name),
-                Boolean(this.schema.required[name]),
+                Boolean(this.schema.required?.includes(name)),
             ]
         }
     }
 
-    getNode(name, node=null) {
-        console.groupCollapsed(name)
+    getNode(name: string, node?: SchemaNode): SchemaNode{
         let split = name.split("/")
         if (split[0] === "#") {
             split.shift()
@@ -33,48 +31,60 @@ export class SchemaHelper {
         } else if (! node) {
             throw new SchemaError("The path is relative but no node is provided")
         }
-        return this._getNode(split, node, name)
+        return this._getNode(split, node)
     }
 
-    protected _getNode(path, node, initial) {
-        console.log(path, node)
-        let name = path.shift()
-        if (path.length !== 0) {
-            return this._getNode(path, node[name])
+    protected _getNode(path: string[], node: SchemaNode): SchemaNode {
+        let key = path.shift()
+        if (key) {
+            return this._getNode(path, node[key])
         } else {
-            console.groupEnd(initial)
-            return node[name]
+            return node
         }
     }
 
-    getProperty(name) {
-        let {$ref, anyOf, ...fieldSchema} = this.schema.properties[name]
+    getProperty(name: string): Property {
+        let {$ref, anyOf, ...fieldSchema}: any = this.schema.properties[name]
 
         if ($ref) {
             fieldSchema = this.getNode($ref)
         }
 
         if (anyOf) {
-            fieldSchema = mergeObjects(fieldSchema, this.reduceAnyOf(anyOf))
+            fieldSchema = {...fieldSchema, ...this.reduceAnyOf(anyOf)}
         }
 
         return fieldSchema
     }
 
-    reduceAnyOf(anyOf) {
+    reduceAnyOf(anyOf: PropertyType[]): PropertyType {
         // @KLUDGE: not sure for this behavior, how to determine the right type
         // and validation to apply on the field?
         return anyOf.reduce((r, i) => i["format"] && i["type"] ? i : r)
     }
 
-    getEnum(node) {
-        let {enum: enum_, items, $ref} = node
-        if (enum_ || items) {
-            return this.getEnum(enum_ || items)
-        } else if ($ref) {
-            return this.getEnum(this.getNode($ref))
+    getSubSchema(node: Property): Schema | undefined {
+        // @TODO: check if it could exist other cases
+        let $ref = node.$ref || node.items?.$ref
+        if ($ref) {
+            let refNode = this.getNode($ref)
+            if (refNode.properties) {
+                return refNode as Schema
+            }
         }
-        return node
+
+        return undefined
+    }
+
+    getEnum(node: SchemaNode): Enum {
+        if (node.enum) {
+            return node.enum
+        } else if (node.items) {
+            return this.getEnum(node.items)
+        } else if (node.$ref) {
+            return this.getEnum(this.getNode(node.$ref))
+        }
+        throw new SchemaError("Not an enum node")
     }
 
 }

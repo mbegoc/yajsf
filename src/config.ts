@@ -1,28 +1,34 @@
-// @ts-nocheck
-
-import * as baseConfig from './settings.json'
+import { settings } from './settings'
+export { settings } from './settings'
+// import type { Settings } from "./types"
 import {
     YAJSFForm,
+    YAJSFField,
     YAJSFInput,
     YAJSFSelect,
     YAJSFTextArea,
 } from "./components"
 
 
-export const settings = baseConfig
+// create a copy without the false writable flag
+// @TODO: can we do that more elegantly?
+// export settings = Object.fromEntries(Object.entries(baseConfig))
 
 
-let setReady = null
-export const ready = new Promise((resolve, reject) => setReady = resolve)
+let setReady: Function | null = null
+export const ready = new Promise(resolve => setReady = resolve)
 
 
-export function autoconfigure(options={}) {
+export function registerComponents() {
     console.groupCollapsed("YAJSF config")
     console.time("YAJSF Init Time")
 
     // register the components as custom elements
     console.info("Register y-form")
     customElements.define("y-form", YAJSFForm)
+
+    console.info("Register y-system")
+    customElements.define("y-system", YAJSFField)
 
     console.info("Register y-input")
     customElements.define("y-input", YAJSFInput)
@@ -34,14 +40,12 @@ export function autoconfigure(options={}) {
     customElements.define("y-textarea", YAJSFTextArea)
 
     console.timeLog("YAJSF Init Time")
-    console.groupEnd("YAJSF config")
+    console.groupEnd()
 
-    setReady()
+    setReady!()
 }
 
 
-export function configure(options={}) {
-    for (let name in options) {
-        settings[name] = options[name]
-    }
+export function configure(options: {[key: string]: any}) {
+    Object.assign(settings, options)
 }
