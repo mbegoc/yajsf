@@ -1,8 +1,9 @@
-// @ts-nocheck
-
-import * as baseConfig from './settings.json'
+import { settings } from './settings'
+export { settings } from './settings'
+import type { Dict } from "./types"
 import {
     YAJSFForm,
+    YAJSFField,
     YAJSFInput,
     YAJSFSelect,
     YAJSFTextArea,
@@ -14,17 +15,20 @@ import {
 export const settings = Object.fromEntries(Object.entries(baseConfig))
 
 
-let setReady = null
-export const ready = new Promise((resolve, reject) => setReady = resolve)
+let setReady: Function | null = null
+export const ready = new Promise(resolve => setReady = resolve)
 
 
-export function registerComponents(options={}) {
+export function registerComponents() {
     console.groupCollapsed("YAJSF config")
     console.time("YAJSF Init Time")
 
     // register the components as custom elements
     console.info("Register y-form")
     customElements.define("y-form", YAJSFForm)
+
+    console.info("Register y-system")
+    customElements.define("y-system", YAJSFField)
 
     console.info("Register y-input")
     customElements.define("y-input", YAJSFInput)
@@ -36,12 +40,12 @@ export function registerComponents(options={}) {
     customElements.define("y-textarea", YAJSFTextArea)
 
     console.timeLog("YAJSF Init Time")
-    console.groupEnd("YAJSF config")
+    console.groupEnd()
 
-    setReady()
+    setReady!()
 }
 
 
-export function configure(options={}) {
+export function configure(options: Dict) {
     Object.assign(settings, options)
 }
