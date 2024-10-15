@@ -8,7 +8,7 @@ import type {
 
 import { settings } from "./config"
 import { getLogger } from "./utils/logging"
-import htmlTemplate from './templates.html?raw'
+import htmlTemplate from './templates/web-components.html?raw'
 import { FormBuilder } from './builders'
 import { SchemaHelper } from "./utils/schema"
 

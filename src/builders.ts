@@ -10,7 +10,12 @@ import type {
 } from "./types"
 import { SchemaHelper } from "./utils/schema"
 import { settings } from "./config"
+import { getLogger } from "./utils/logging"
+import { deepMerge } from "./utils/helpers"
 import { YAJSFForm, YAJSFField, YAJSFSelect, YAJSFError } from "./components"
+
+
+const logger = getLogger("Builders", "Orchid")
 
 
 class FieldBuilder {
@@ -71,8 +76,8 @@ class FieldBuilder {
         this.name = name
         this.property = property
         this.required = required
-        this.customization = {...this.typeMapping[this.format],
-                              ...customization}
+        this.customization = deepMerge(this.typeMapping[this.format],
+                                       customization)
         this.namePrefix = namePrefix
         this.titlePrefix = titlePrefix
     }
