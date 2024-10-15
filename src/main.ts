@@ -47,7 +47,7 @@ switch (mode) {
           data-schema='${JSON.stringify(Object.assign(schema))}'
           data-data='${JSON.stringify(data)}'
           data-errors='${JSON.stringify(errors)}'
-          data-options='{"options": {"widget": "input", "attrs": {"type": "color"}}, "csrf_token": {"widget": "system", "attrs": {"type": "hidden"}}, "id": {"widget": "system", "attrs": {"type": "hidden"}}}'>
+          data-options='{"options": {"widget": "input", "attrs": {"type": "color"}}, "csrf_token": {"widget": "system", "attrs": {"type": "hidden"}}, "id": {"widget": "system", "attrs": {"type": "hidden"}}, "uuid": {"attrs": {"placeholder": "xxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxxxxxxx"}}}'>
         </y-form>`
         document.querySelector('#app').appendChild(div1)
         break

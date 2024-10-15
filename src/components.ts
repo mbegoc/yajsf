@@ -208,8 +208,17 @@ export class YAJSFForm extends HTMLElement {
      * @FIXME: Exploratory code (too complex IMAO)
      */
     schemaValidate(): boolean {
-        let validate = parser(this.schema as SchemaSafe,
-                              settings.schemasafeValidationOptions)
+        let validate = parser(this.schema as SchemaSafe,{
+            $schemaDefault: "https://json-schema.org/draft/2020-12/schema",
+            mode: "default",
+            allErrors: true,
+            includeErrors: true,
+            extraFormats: true,
+            formats: {
+                "password": /^[\S]+$/,
+                "uuid4": /^[a-z0-9-]+$/,
+            }
+        })
         // will trigger a formdata event. Probably not ideal if validation
         // fail
         let formdata = new FormData(this.mainNode)
