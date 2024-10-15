@@ -6,10 +6,14 @@ import type {
     FormSettings,
 } from "./types"
 
+import { settings } from "./config"
+import { getLogger } from "./utils/logging"
 import htmlTemplate from './templates.html?raw'
 import { FormBuilder } from './builders'
-import { settings } from "./config"
 import { SchemaHelper } from "./utils/schema"
+
+
+const logger = getLogger("Comoponents", "Steel")
 
 
 // Parse the text template by building a DOM
@@ -98,6 +102,8 @@ export class YAJSFForm extends HTMLElement {
             this.internalId = String(Math.round(Math.random()*10000))
         }
 
+        logger.time(`Form ${this.internalId}`)
+
         if (! formSettings) {
             let attrs: (keyof FormSettings)[] = [
                 "schema", "data", "options", "errors"]
@@ -109,20 +115,20 @@ export class YAJSFForm extends HTMLElement {
                             {[attr]: JSON.parse(this.dataset[attr])},
                         )
                     } catch(exc) {
-                        console.warn(`YAJSF ― Couldn't load data-${attr}. ` +
-                                     `Continue with an empty value.\n`, exc)
+                        logger.warn(`YAJSF ― Couldn't load data-${attr}. ` +
+                                    `Continue with an empty value.\n`, exc)
                     }
                 }
             }
         }
 
 
-        console.groupCollapsed(`YAJSF ― Form creation ${this.internalId}`)
-        console.debug(this)
-        console.debug("Dataset", this.dataset)
+        logger.groupCollapsed(`YAJSF ― Form creation ${this.internalId}`)
+        logger.debug(`Form ${this.internalId}`, this)
+        logger.debug("Dataset", this.dataset)
 
         if (! formSettings) {
-            console.warn(
+            logger.warn(
                 // throw new Error(
                 `No schema provided.  The node containing this form may have
                  been refreshed and this component may have been recreated
@@ -135,17 +141,15 @@ export class YAJSFForm extends HTMLElement {
 
             let schemaErrors = lint(this.schema as SchemaSafe)
             if (schemaErrors ) {
-                console.warn("YAJSF ― Schema errors were found", schemaErrors)
+                logger.warn("YAJSF ― Schema errors were found", schemaErrors)
             }
             this.schemaHelper = new SchemaHelper(this.schema)
         }
 
-        console.debug("Schema", this.schema)
-        console.debug("Data", this.data)
-        console.debug("Options", this.options)
-        console.debug("Errors", this.errors)
-
-        console.groupEnd()
+        logger.debug("Schema", this.schema)
+        logger.debug("Data", this.data)
+        logger.debug("Options", this.options)
+        logger.debug("Errors", this.errors)
 
         this.attachShadow({ mode: "open" })
         let template = YAJSFForm.template
@@ -184,7 +188,10 @@ export class YAJSFForm extends HTMLElement {
         this.mainNode.addEventListener<"submit">("submit", event =>
             this.submit(event))
         this.mainNode.addEventListener('formdata', event =>
-            console.info("YAJSF ― FormData available", event.formData))
+            logger.info("YAJSF ― FormData available", event.formData))
+
+        logger.timeLog(`Form ${this.internalId}`, "Form is generated")
+        logger.groupEnd()
     }
 
     validate(): boolean {
@@ -247,7 +254,7 @@ export class YAJSFForm extends HTMLElement {
     }
 
     submit(event: SubmitEvent) {
-        console.info("YAJSF ― Form submission")
+        logger.info("YAJSF ― Form submission")
 
         if (!this.validate() || settings.preventHTTPSubmit) {
             event.preventDefault()
@@ -382,9 +389,9 @@ export class YAJSFField extends HTMLElement {
             li.innerText = error
             ul.appendChild(li)
         } else {
-            console.groupCollapsed("YAJSF ― No container to display error.")
-            console.info("Error message was", error)
-            console.groupEnd()
+            logger.groupCollapsed("YAJSF ― No container to display error.")
+            logger.info("Error message was", error)
+            logger.groupEnd()
         }
     }
 

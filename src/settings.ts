@@ -1,0 +1,20 @@
+export const settings = {
+    injectScripts: false,
+    preventHTTPSubmit: false,
+    integrateSystemValidationMessage: false,
+    defaultWidget: "textarea",
+    defaultNumberStep: "any",
+    titlePrefix: "",
+    titleSeparator: "―",
+    requiredTitlePrefix: "*",
+    logLevel: 10,
+    loggerThemes: {},
+    schemasafeValidationOptions: {
+        $schemaDefault: "https://json-schema.org/draft/2020-12/schema",
+        mode: "default",
+        lint: true,
+        allErrors: true,
+        includeErrors: true,
+        extraFormats: true,
+    },
+}

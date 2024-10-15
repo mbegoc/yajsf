@@ -10,6 +10,7 @@ import data from './fixtures/data.json'
 import errors from './fixtures/errors.json'
 
 import { registerComponents, configure } from './config'
+import { getLogger } from './utils/logging'
 
 
 registerComponents()

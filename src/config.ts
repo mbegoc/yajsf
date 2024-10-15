@@ -1,6 +1,6 @@
 import { settings } from './settings'
 export { settings } from './settings'
-// import type { Settings } from "./types"
+
 import {
     YAJSFForm,
     YAJSFField,
@@ -8,6 +8,10 @@ import {
     YAJSFSelect,
     YAJSFTextArea,
 } from "./components"
+import { getLogger } from "./utils/logging"
+
+
+const logger = getLogger("Config")
 
 
 // create a copy without the false writable flag
@@ -20,27 +24,27 @@ export const ready = new Promise(resolve => setReady = resolve)
 
 
 export function registerComponents() {
-    console.groupCollapsed("YAJSF config")
-    console.time("YAJSF Init Time")
+    logger.groupCollapsed("YAJSF config")
+    logger.time("YAJSF Init Time")
 
     // register the components as custom elements
-    console.info("Register y-form")
+    logger.info("Register y-form")
     customElements.define("y-form", YAJSFForm)
 
-    console.info("Register y-system")
+    logger.info("Register y-system")
     customElements.define("y-system", YAJSFField)
 
-    console.info("Register y-input")
+    logger.info("Register y-input")
     customElements.define("y-input", YAJSFInput)
 
-    console.info("Register y-select")
+    logger.info("Register y-select")
     customElements.define("y-select", YAJSFSelect)
 
-    console.info("Register y-textarea")
+    logger.info("Register y-textarea")
     customElements.define("y-textarea", YAJSFTextArea)
 
-    console.timeLog("YAJSF Init Time")
-    console.groupEnd()
+    logger.timeLog("YAJSF Init Time")
+    logger.groupEnd()
 
     setReady!()
 }
