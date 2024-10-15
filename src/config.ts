@@ -1,6 +1,6 @@
 import { settings } from './settings'
 export { settings } from './settings'
-// import type { Settings } from "./types"
+import type { Dict } from "./types"
 import {
     YAJSFForm,
     YAJSFField,
@@ -46,6 +46,6 @@ export function registerComponents() {
 }
 
 
-export function configure(options: {[key: string]: any}) {
+export function configure(options: Dict) {
     Object.assign(settings, options)
 }
