@@ -6,7 +6,7 @@ import type {
     FormSettings,
 } from "./types"
 
-import { settings } from "./config"
+import { settings, ready } from "./config"
 import { getLogger } from "./utils/logging"
 import htmlTemplate from './templates/web-components.html?raw'
 import { FormBuilder } from './builders'
@@ -123,8 +123,7 @@ export class YAJSFForm extends HTMLElement {
         }
 
 
-        logger.groupCollapsed(`YAJSF ― Form creation ${this.internalId}`)
-        logger.debug(`Form ${this.internalId}`, this)
+        logger.debug(`Form Creation ${this.internalId}`, this)
         logger.debug("Dataset", this.dataset)
 
         if (! formSettings) {
@@ -157,7 +156,11 @@ export class YAJSFForm extends HTMLElement {
         this.mainNode = this.shadowRoot!.querySelector('.main')!
     }
 
-    connectedCallback() {
+    async connectedCallback() {
+        // awaiting all components are registered before starting
+        // to build the form
+        await ready
+
         if (this.schema) {
             let builder = new FormBuilder(
                 this.schema,
@@ -191,7 +194,6 @@ export class YAJSFForm extends HTMLElement {
             logger.info("YAJSF ― FormData available", event.formData))
 
         logger.timeLog(`Form ${this.internalId}`, "Form is generated")
-        logger.groupEnd()
     }
 
     validate(): boolean {
@@ -398,9 +400,8 @@ export class YAJSFField extends HTMLElement {
             li.innerText = error
             ul.appendChild(li)
         } else {
-            logger.groupCollapsed("YAJSF ― No container to display error.")
-            logger.info("Error message was", error)
-            logger.groupEnd()
+            logger.info("YAJSF ― No container to display error.",
+                        "Error message was", error)
         }
     }
 

@@ -24,7 +24,6 @@ export const ready = new Promise(resolve => setReady = resolve)
 
 
 export function registerComponents() {
-    logger.groupCollapsed("YAJSF config")
     logger.time("YAJSF Init Time")
 
     // register the components as custom elements
@@ -44,7 +43,6 @@ export function registerComponents() {
     customElements.define("y-textarea", YAJSFTextArea)
 
     logger.timeLog("YAJSF Init Time")
-    logger.groupEnd()
 
     setReady!()
 }
