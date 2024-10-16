@@ -1,4 +1,12 @@
-import type { Schema, PropertyType, Property, SchemaNode, Enum } from "../types"
+import type {
+    Schema,
+    PropertyType,
+    Property,
+    Reference,
+    SchemaNode,
+    MixedSchemaNode,
+    Enum,
+} from "../types"
 
 
 export class SchemaError extends Error { }
@@ -20,7 +28,7 @@ export class SchemaHelper {
         }
     }
 
-    getNode(name: string, node?: SchemaNode): SchemaNode{
+    getNode(name: string, node?: MixedSchemaNode): SchemaNode{
         let split = name.split("/")
         if (split[0] === "#") {
             split.shift()
@@ -34,7 +42,7 @@ export class SchemaHelper {
         return this._getNode(split, node)
     }
 
-    protected _getNode(path: string[], node: SchemaNode): SchemaNode {
+    protected _getNode(path: string[], node: MixedSchemaNode): SchemaNode {
         let key = path.shift()
         if (key) {
             return this._getNode(path, node[key])
@@ -58,16 +66,16 @@ export class SchemaHelper {
     }
 
     reduceAnyOf(anyOf: PropertyType[]): PropertyType {
-        // @KLUDGE: not sure for this behavior, how to determine the right type
+        // @KLUDGE: not sure of this behavior, how to determine the right type
         // and validation to apply on the field?
         return anyOf.reduce((r, i) => i["format"] && i["type"] ? i : r)
     }
 
-    getSubSchema(node: Property): Schema | undefined {
+    getSubSchema(node: MixedSchemaNode): Schema | undefined {
         // @TODO: check if it could exist other cases
-        let $ref = node.$ref || node.items?.$ref
+        let $ref = node.$ref || node.items && (node.items as Reference).$ref
         if ($ref) {
-            let refNode = this.getNode($ref)
+            let refNode = this.getNode($ref) as MixedSchemaNode
             if (refNode.properties) {
                 return refNode as Schema
             }
@@ -76,7 +84,7 @@ export class SchemaHelper {
         return undefined
     }
 
-    getEnum(node: SchemaNode): Enum {
+    getEnum(node: MixedSchemaNode): Enum {
         if (node.enum) {
             return node.enum
         } else if (node.items) {

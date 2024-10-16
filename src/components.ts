@@ -6,10 +6,14 @@ import type {
     FormSettings,
 } from "./types"
 
-import htmlTemplate from './templates.html?raw'
+import { settings, ready } from "./config"
+import { getLogger } from "./utils/logging"
+import htmlTemplate from './templates/web-components.html?raw'
 import { FormBuilder } from './builders'
-import { settings } from "./config"
 import { SchemaHelper } from "./utils/schema"
+
+
+const logger = getLogger("Comoponents", "Steel")
 
 
 // Parse the text template by building a DOM
@@ -80,7 +84,7 @@ export class YAJSFError extends Error { }
 export class YAJSFForm extends HTMLElement {
     static template = templatesRoot.querySelector('#yajsf-form') as HTMLTemplateElement
     mainNode: HTMLFormElement
-    protected internalId: string
+    internalId: string
     protected schema?: FormSettings["schema"]
     protected data?: FormSettings["data"]
     protected options?: FormSettings["options"]
@@ -98,6 +102,8 @@ export class YAJSFForm extends HTMLElement {
             this.internalId = String(Math.round(Math.random()*10000))
         }
 
+        logger.time(`Form ${this.internalId}`)
+
         if (! formSettings) {
             let attrs: (keyof FormSettings)[] = [
                 "schema", "data", "options", "errors"]
@@ -109,20 +115,19 @@ export class YAJSFForm extends HTMLElement {
                             {[attr]: JSON.parse(this.dataset[attr])},
                         )
                     } catch(exc) {
-                        console.warn(`YAJSF ― Couldn't load data-${attr}. ` +
-                                     `Continue with an empty value.\n`, exc)
+                        logger.warn(`YAJSF ― Couldn't load data-${attr}. ` +
+                                    `Continue with an empty value.\n`, exc)
                     }
                 }
             }
         }
 
 
-        console.groupCollapsed(`YAJSF ― Form creation ${this.internalId}`)
-        console.debug(this)
-        console.debug("Dataset", this.dataset)
+        logger.debug(`Form Creation ${this.internalId}`, this)
+        logger.debug("Dataset", this.dataset)
 
         if (! formSettings) {
-            console.warn(
+            logger.warn(
                 // throw new Error(
                 `No schema provided.  The node containing this form may have
                  been refreshed and this component may have been recreated
@@ -135,17 +140,15 @@ export class YAJSFForm extends HTMLElement {
 
             let schemaErrors = lint(this.schema as SchemaSafe)
             if (schemaErrors ) {
-                console.warn("YAJSF ― Schema errors were found", schemaErrors)
+                logger.warn("YAJSF ― Schema errors were found", schemaErrors)
             }
             this.schemaHelper = new SchemaHelper(this.schema)
         }
 
-        console.debug("Schema", this.schema)
-        console.debug("Data", this.data)
-        console.debug("Options", this.options)
-        console.debug("Errors", this.errors)
-
-        console.groupEnd()
+        logger.debug("Schema", this.schema)
+        logger.debug("Data", this.data)
+        logger.debug("Options", this.options)
+        logger.debug("Errors", this.errors)
 
         this.attachShadow({ mode: "open" })
         let template = YAJSFForm.template
@@ -153,7 +156,11 @@ export class YAJSFForm extends HTMLElement {
         this.mainNode = this.shadowRoot!.querySelector('.main')!
     }
 
-    connectedCallback() {
+    async connectedCallback() {
+        // awaiting all components are registered before starting
+        // to build the form
+        await ready
+
         if (this.schema) {
             let builder = new FormBuilder(
                 this.schema,
@@ -184,10 +191,19 @@ export class YAJSFForm extends HTMLElement {
         this.mainNode.addEventListener<"submit">("submit", event =>
             this.submit(event))
         this.mainNode.addEventListener('formdata', event =>
-            console.info("YAJSF ― FormData available", event.formData))
+            logger.info("YAJSF ― FormData available", event.formData))
+
+        logger.timeLog(`Form ${this.internalId}`, "Form is generated")
+    }
+
+    clearErrors() {
+        for (let field of this.fields.values()) {
+            field.clearErrors()
+        }
     }
 
     validate(): boolean {
+        this.clearErrors()
         return this.systemValidate() && this.schemaValidate()
     }
 
@@ -201,16 +217,28 @@ export class YAJSFForm extends HTMLElement {
      * @FIXME: Exploratory code (too complex IMAO)
      */
     schemaValidate(): boolean {
-        let validate = parser(this.schema as SchemaSafe,
-                              settings.schemasafeValidationOptions)
+        let validate = parser(this.schema as SchemaSafe,{
+            $schemaDefault: "https://json-schema.org/draft/2020-12/schema",
+            mode: "default",
+            allErrors: true,
+            includeErrors: true,
+            extraFormats: true,
+            formats: {
+                "password": /^[\S]{8,}$/,
+                "uuid4": /^[a-z0-9-]+$/,
+            }
+        })
         // will trigger a formdata event. Probably not ideal if validation
         // fail
         let formdata = new FormData(this.mainNode)
         let map = (formdata.entries() as any).reduce((result: Map<string, string>, item: string[]) => {
-            result.set(item[0], item[1])
+            if (item[1] !== "") {
+                result.set(item[0], item[1])
+            }
             return result
         }, new Map())
         let validation = validate(JSON.stringify(Object.fromEntries(map)))
+        logger.debug("Schema validation", validation)
         if (! validation.valid) {
             let errors = validation.errors!.reduce((result: Map<string, string[]>, error: {instanceLocation: string, keywordLocation: string}) => {
                 let fieldName = error.instanceLocation.slice(2)
@@ -247,7 +275,7 @@ export class YAJSFForm extends HTMLElement {
     }
 
     submit(event: SubmitEvent) {
-        console.info("YAJSF ― Form submission")
+        logger.info("YAJSF ― Form submission")
 
         if (!this.validate() || settings.preventHTTPSubmit) {
             event.preventDefault()
@@ -350,12 +378,10 @@ export class YAJSFField extends HTMLElement {
 
     validate(systemReport: boolean): boolean {
         if (settings.integrateSystemValidationMessage) {
-            if (this.clearErrors) {
-                this.clearErrors()
-                if (! this.mainNode.checkValidity()) {
-                    this.addError(this.mainNode.validationMessage)
-                    return false
-                }
+            this.clearErrors()
+            if (! this.mainNode.checkValidity()) {
+                this.addError(this.mainNode.validationMessage)
+                return false
             }
         } else if (systemReport) {
             return this.mainNode.reportValidity()
@@ -382,9 +408,8 @@ export class YAJSFField extends HTMLElement {
             li.innerText = error
             ul.appendChild(li)
         } else {
-            console.groupCollapsed("YAJSF ― No container to display error.")
-            console.info("Error message was", error)
-            console.groupEnd()
+            logger.info("YAJSF ― No container to display error.",
+                        "Error message was", error)
         }
     }
 
@@ -404,6 +429,10 @@ export class YAJSFField extends HTMLElement {
                     this.setTitle(value as string)
                 }
             } else {
+                if (name === "name") {
+                    // needed to include the field into the generated formData
+                    this.setAttribute(name, value as string)
+                }
                 this.mainNode.setAttribute(name, value as string)
             }
         }

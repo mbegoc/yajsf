@@ -10,7 +10,12 @@ import type {
 } from "./types"
 import { SchemaHelper } from "./utils/schema"
 import { settings } from "./config"
+import { getLogger } from "./utils/logging"
+import { deepMerge } from "./utils/helpers"
 import { YAJSFForm, YAJSFField, YAJSFSelect, YAJSFError } from "./components"
+
+
+const logger = getLogger("Builders", "Orchid")
 
 
 class FieldBuilder {
@@ -71,8 +76,8 @@ class FieldBuilder {
         this.name = name
         this.property = property
         this.required = required
-        this.customization = {...this.typeMapping[this.format],
-                              ...customization}
+        this.customization = deepMerge(this.typeMapping[this.format],
+                                       customization)
         this.namePrefix = namePrefix
         this.titlePrefix = titlePrefix
     }
@@ -149,8 +154,8 @@ class FieldBuilder {
             }
             // transfer schema attributes to HTML one
             for (let [fromAttr, toAttr] of Object.entries(this.attrMapping)) {
-                if (typeof(this.property[fromAttr]) !== "undefined") {
-                    this._attributes[toAttr] = this.property[fromAttr]
+                if (typeof(this.property[fromAttr as keyof Property]) !== "undefined") {
+                    this._attributes[toAttr] = this.property[fromAttr as keyof Property]
                 }
             }
             this._attributes = {...this._attributes,
@@ -168,7 +173,8 @@ class FieldBuilder {
         
         let FieldClass = customElements.get(`y-${this.widget}`)
         if (! FieldClass) {
-            throw new YAJSFError("Field type is not a registered custom element")
+            throw new YAJSFError(
+                "Field type is not a registered custom element")
         }
         let field = new FieldClass() as YAJSFField
         field.setAttributes(this.attributes)
@@ -254,6 +260,8 @@ export class FormBuilder {
 
             this.root.addField(field)
         }
+
+        logger.info(`Successfully built form ${this.root.internalId}`)
     }
 
 }
