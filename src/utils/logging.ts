@@ -9,6 +9,12 @@ export const INFO = 20
 export const DEBUG = 10
 
 
+const console = window.console
+if (settings.preventConsoleUsage) {
+    window.console = undefined
+}
+
+
 const themes: Dict = {
     "Default": {bgColor: "gray", color: "black", icon: "⚙"},
     "Blue": {bgColor: "darkblue", color: "lightgrey", icon: "⚘"},

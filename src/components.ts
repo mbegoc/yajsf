@@ -196,7 +196,14 @@ export class YAJSFForm extends HTMLElement {
         logger.timeLog(`Form ${this.internalId}`, "Form is generated")
     }
 
+    clearErrors() {
+        for (let field of this.fields.values()) {
+            field.clearErrors()
+        }
+    }
+
     validate(): boolean {
+        this.clearErrors()
         return this.systemValidate() && this.schemaValidate()
     }
 
@@ -217,7 +224,7 @@ export class YAJSFForm extends HTMLElement {
             includeErrors: true,
             extraFormats: true,
             formats: {
-                "password": /^[\S]+$/,
+                "password": /^[\S]{8,}$/,
                 "uuid4": /^[a-z0-9-]+$/,
             }
         })
@@ -225,10 +232,13 @@ export class YAJSFForm extends HTMLElement {
         // fail
         let formdata = new FormData(this.mainNode)
         let map = (formdata.entries() as any).reduce((result: Map<string, string>, item: string[]) => {
-            result.set(item[0], item[1])
+            if (item[1] !== "") {
+                result.set(item[0], item[1])
+            }
             return result
         }, new Map())
         let validation = validate(JSON.stringify(Object.fromEntries(map)))
+        logger.debug("Schema validation", validation)
         if (! validation.valid) {
             let errors = validation.errors!.reduce((result: Map<string, string[]>, error: {instanceLocation: string, keywordLocation: string}) => {
                 let fieldName = error.instanceLocation.slice(2)
@@ -368,12 +378,10 @@ export class YAJSFField extends HTMLElement {
 
     validate(systemReport: boolean): boolean {
         if (settings.integrateSystemValidationMessage) {
-            if (this.clearErrors) {
-                this.clearErrors()
-                if (! this.mainNode.checkValidity()) {
-                    this.addError(this.mainNode.validationMessage)
-                    return false
-                }
+            this.clearErrors()
+            if (! this.mainNode.checkValidity()) {
+                this.addError(this.mainNode.validationMessage)
+                return false
             }
         } else if (systemReport) {
             return this.mainNode.reportValidity()
