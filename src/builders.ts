@@ -173,7 +173,8 @@ class FieldBuilder {
         
         let FieldClass = customElements.get(`y-${this.widget}`)
         if (! FieldClass) {
-            throw new YAJSFError("Field type is not a registered custom element")
+            throw new YAJSFError(
+                "Field type is not a registered custom element")
         }
         let field = new FieldClass() as YAJSFField
         field.setAttributes(this.attributes)
@@ -259,6 +260,8 @@ export class FormBuilder {
 
             this.root.addField(field)
         }
+
+        logger.info(`Successfully built form ${this.root.internalId}`)
     }
 
 }

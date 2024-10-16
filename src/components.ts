@@ -84,7 +84,7 @@ export class YAJSFError extends Error { }
 export class YAJSFForm extends HTMLElement {
     static template = templatesRoot.querySelector('#yajsf-form') as HTMLTemplateElement
     mainNode: HTMLFormElement
-    protected internalId: string
+    internalId: string
     protected schema?: FormSettings["schema"]
     protected data?: FormSettings["data"]
     protected options?: FormSettings["options"]
@@ -420,6 +420,10 @@ export class YAJSFField extends HTMLElement {
                     this.setTitle(value as string)
                 }
             } else {
+                if (name === "name") {
+                    // needed to include the field into the generated formData
+                    this.setAttribute(name, value as string)
+                }
                 this.mainNode.setAttribute(name, value as string)
             }
         }
